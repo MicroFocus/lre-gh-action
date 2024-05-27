@@ -37,7 +37,7 @@ jobs:
       run: mvn -B package --file java/pom.xml
 
     - name: Run tests
-      run: mvn test
+      run: mvn -B test --file java/pom.xml
         
     # Build with npm
     - name: Build with npm
