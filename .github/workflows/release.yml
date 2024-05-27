@@ -1,0 +1,89 @@
+name: Build and Release Beta Package
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Set up the environment for both Java and Node.js
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'adopt'
+          java-version: '11'
+
+      # Build the Java application with Maven
+      - name: Build Java with Maven
+        run: mvn -B package --file java/pom.xml
+        
+      - name: Run tests
+        run: mvn test
+      
+      # setup nodejs
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Install npm dependencies
+      - name: Install npm dependencies
+        run: npm install
+        
+      # Install ncc globally
+      - name: Install ncc
+        run: npm install -g @vercel/ncc
+
+      # Build with npm
+      - name: Build with npm
+        run: npm run buildWebpackU
+
+      # Prepare the release package
+      - name: Prepare the release package
+        id: prepare_release
+        run: |
+          REPO_NAME=$(basename $GITHUB_REPOSITORY)
+          VERSION=$(git describe --tags --always)
+          PACKAGE_NAME="${REPO_NAME}-${VERSION}"
+          mkdir -p $PACKAGE_NAME
+          cp -r bundle $PACKAGE_NAME/
+          cp -r action.yml $PACKAGE_NAME/
+          zip -r ${PACKAGE_NAME}.zip $PACKAGE_NAME/
+          mkdir -p release
+          mv ${PACKAGE_NAME}.zip release/
+          echo "PACKAGE_PATH=release/${PACKAGE_NAME}.zip" >> $GITHUB_ENV
+          ls -al release
+        shell: bash
+
+      # Create Release
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      # Upload release package to GitHub release
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.PACKAGE_PATH }}
+          asset_name: ${{ env.PACKAGE_PATH }}
+          asset_content_type: application/zip

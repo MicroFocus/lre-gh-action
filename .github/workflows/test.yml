@@ -1,0 +1,60 @@
+name: Test My GitHub Action
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'tests/**'
+    tags-ignore:
+      - 'v*.*.*'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'tests/**'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Start a LRE load test
+    env:
+      lre_username: '${{ secrets.LRE_USERNAME_TOKEN }}'
+      lre_password: '${{ secrets.LRE_PASSWORD_TOKEN }}'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: adopt
+          java-version: '11'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run My GitHub Action
+        uses: MicroFocus/LRE-GHA@v1.0.0-beta4
+        with:
+          lre_action: ExecuteLreTest
+          lre_description: running new yaml test
+          lre_server: lreorg1001.saas.microfocus.com/?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3
+          lre_https_protocol: true
+          lre_authenticate_with_token: true
+          lre_domain: DANIEL
+          lre_project: proj1
+          lre_test: YamlTest/createTestFromYaml.yaml
+          lre_test_instance: AUTO
+          lre_timeslot_duration_hours: 0
+          lre_timeslot_duration_minutes: 30
+          lre_post_run_action: Collate and Analyze
+          lre_vuds_mode: false
+          lre_trend_report: ASSOCIATED
+          lre_status_by_sla: false
+          lre_output_dir: ${{ github.workspace }}
+          lre_enable_stacktrace: true
+      - name: List workspace directory contents
+        run: 'ls -R ${{ github.workspace }}/LreResult'
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: '${{ github.workspace }}/LreResult'

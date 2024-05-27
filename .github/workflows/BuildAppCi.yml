@@ -1,0 +1,52 @@
+name: CI build
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'scr/**'
+      - 'action.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'webpack.config.js'
+    tags-ignore:
+      - 'v*.*.*'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'scr/**'
+      - 'action.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'webpack.config.js'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 11
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'adopt'
+        java-version: '11'
+
+    - name: Build with Maven
+      run: mvn -B package --file java/pom.xml
+
+    - name: Run tests
+      run: mvn test
+        
+    # Build with npm
+    - name: Build with npm
+      run: npm run buildWebpackU
+      
+    - name: Upload JAR artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: collect action descriptor and npm build
+        path:
+          action.yml
+          bundle/

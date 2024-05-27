@@ -1,0 +1,110 @@
+name: 'LoadRunner Enterprise Action'
+description: 'Run test in LoadRunner Enterprise'
+author: 'OpenText'
+branding:
+  color: 'blue'
+inputs:
+  lre_action:
+    description: 'action to be triggered. Current supported action: ExecuteLreTest'
+    required: false
+    default: 'ExecuteLreTest'
+  lre_description:
+    description: 'you can describe the action (will be displayed in console logs)'
+    required: false
+  lre_server:
+    description: >-
+      'LRE Server, port (when not mentionned, default is 80 or 433 for secured) 
+      and tenant (when not mentionned, default is ?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3). 
+      e.g.: mylreserver.mydomain.com:81/?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3'
+    required: true
+  lre_https_protocol:
+    description: 'Use secured protocol for connecting to LRE. Possible values: true or false'
+    required: false
+    default: 'false'
+  lre_authenticate_with_token:
+    description: 'Authenticate with LRE token. Required when SSO is configured in LRE. Possible values: true or false'
+    required: false
+    default: 'false'  
+  lre_username:
+    description: 'username'
+    required: true
+  lre_password:
+    description: 'password'
+    required: true
+  lre_domain:
+    description: 'domain (case sensitive)'
+    required: true
+  lre_project:
+    description: 'project (case sensitive)'
+    required: true
+  lre_test:
+    description: >-
+      'Possible values: 
+      - valid test ID#  
+      - relative path to workspace of yaml file defining new test design creation
+    required: true
+  lre_test_instance:
+    description: 'either specify AUTO to use any instance or a specific instance ID'
+    required: false
+    default: 'AUTO'
+  lre_timeslot_duration_hours:
+    description: 'timeslot duration in hours'
+    required: false
+    default: '0'
+  lre_timeslot_duration_minutes:
+    description: 'timeslot duration in minutes'
+    required: false
+    default: '30'
+  lre_post_run_action:
+    description: >-
+      'possible values for post run action: 
+      - Collate Results,
+      - Collate and Analyze 
+      - Do Not Collate'
+    required: false
+    default: 'Do Not Collate'
+  lre_vuds_mode:
+    description: 'Use VUDS licenses. Possible values: true or false'
+    required: false
+    default: 'false'
+  lre_trend_report:
+    description: >-
+      'Possible values (no value or not defined means no trend monitoring in build but will not cancel trend report defined in LRE):
+      - ASSOCIATED : the trend report defined in the test design will be used'
+      - specify valid report ID#.
+    required: false
+    default: ''
+  lre_proxy_out_url:
+    description: 'proxy URL'
+    required: false
+    default: ''
+  lre_username_proxy:
+    description: 'proxy username'
+    required: false
+    default: ''
+  lre_password_proxy:
+    description: 'proxy password'
+    required: false
+    default: ''
+  lre_search_timeslot:
+    description: 'Search for matching timeslot. Possible values: true or false'
+    required: false
+    default: 'false'
+  lre_status_by_sla:
+    description: 'Report success status according to SLA. Possible values: true or false'
+    required: false
+    default: 'false'
+  lre_output_dir:
+    description: 'The directory to save results'
+    required: false
+    default: './'
+  lre_enable_stacktrace:
+    description: 'if set to true, it will show stack of exception when error occurs'
+    required: false
+    default: 'false'
+outputs:
+  lre_run_id:
+    description: 'The ID of test run started by this action'
+runs:
+  using: 'node20'
+  main: 'bundle/index.js'
