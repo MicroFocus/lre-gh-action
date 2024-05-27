@@ -3,8 +3,8 @@
 [![CodeQL](https://github.com/MicroFocus/lre-gh-action/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/MicroFocus/lrc-gh-action/actions/workflows/github-code-scanning/codeql)
 [![Release](https://github.com/MicroFocus/lrc-gh-action/actions/workflows/release.yml/badge.svg)](https://github.com/MicroFocus/lrc-gh-action/actions/workflows/release.yml)
 
-# GitHub Action for LoadRunner Enterprise
-This LoadRunner Enterprise GitHub Action has for purpose to trigger and monitor a load test execution in LRE server and eventually collect reports (analysis and trend reports).
+# LoadRunner Enterprise Test Execution Action
+This GitHub Action has for purpose to trigger and monitor a load test execution (preexisting or designed according to a yaml file in the git repo) in LRE server, eventually collect reports (analysis and trend reports) and report status.
 
 ## Prerequisites
 

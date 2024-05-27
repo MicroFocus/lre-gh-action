@@ -1,4 +1,4 @@
-name: 'LoadRunner Enterprise Action'
+name: 'LoadRunner Enterprise Test Execution Action'
 description: 'Run test in LoadRunner Enterprise'
 author: 'OpenText'
 branding:
