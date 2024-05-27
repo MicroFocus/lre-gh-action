@@ -2,7 +2,6 @@ const core = require('@actions/core');
 const { spawn } = require('child_process');
 const fs = require('fs').promises;
 const path = require('path');
-// require('dotenv').config();
 
 async function run() {
   try {
