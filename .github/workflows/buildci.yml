@@ -10,6 +10,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'webpack.config.js'
+      - '.github/workflows/buildci.yml'
     tags-ignore:
       - 'v*.*.*'
   pull_request:
@@ -22,6 +23,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'webpack.config.js'
+      - '.github/workflows/buildci.yml'
 jobs:
   build:
     runs-on: ubuntu-latest
