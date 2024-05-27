@@ -43,10 +43,10 @@ jobs:
     # Build with npm
     - name: Build with npm
       run: npm run buildWebpackU
-    - name: Upload JAR artifact
+    - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
         name: collect action descriptor and npm build
-        path:
-          ./action.yml
-          ./bundle/
+        path: |
+          action.yml
+          bundle/
