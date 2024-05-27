@@ -4,6 +4,7 @@ on:
     branches:
       - main
     paths:
+      - 'java/**'
       - 'scr/**'
       - 'action.yml'
       - 'package.json'
@@ -15,6 +16,7 @@ on:
     branches:
       - main
     paths:
+      - 'java/**'
       - 'scr/**'
       - 'action.yml'
       - 'package.json'
