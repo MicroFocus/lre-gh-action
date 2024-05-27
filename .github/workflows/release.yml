@@ -1,4 +1,4 @@
-name: Build and Release Beta Package
+name: Build and Release Package
 
 on:
   push:
