@@ -1,14 +1,13 @@
 ![OpenText Logo](https://upload.wikimedia.org/wikipedia/commons/1/1b/OpenText_logo.svg)
 
-[![CodeQL](https://github.com/MicroFocus/lre-gh-action/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/MicroFocus/lrc-gh-action/actions/workflows/github-code-scanning/codeql)
-[![Release](https://github.com/MicroFocus/lrc-gh-action/actions/workflows/release.yml/badge.svg)](https://github.com/MicroFocus/lrc-gh-action/actions/workflows/release.yml)
+Note: For now this action is not yet published in GitHub marketplace and requires to be referred differently in order to be integrated and used in a workflow as an action.
 
 # LoadRunner Enterprise Test Execution Action
 This GitHub Action has for purpose to trigger and monitor a load test execution (preexisting or designed according to a yaml file in the git repo) in LRE server, eventually collect reports (analysis and trend reports) and report status.
 
 ## Prerequisites
 
-1. Any workflow including this LRE action will need to have preliminary steps such as (see exemple below):
+1. Any workflow including this LRE action will need to have preliminary steps such as (see example below):
  - actions/checkout@v4
  - actions/setup-java@v4 (version 11)
  - actions/setup-node@v4 followed by another step performing npm install .
