@@ -30,7 +30,7 @@ jobs:
       - name: Run tests
         run: mvn -B test --file java/pom.xml
       
-      # setup nodejs
+      # Set up Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -54,10 +54,10 @@ jobs:
         run: |
           REPO_NAME=$(basename $GITHUB_REPOSITORY)
           VERSION=$(git describe --tags --always)
-          PACKAGE_NAME="${REPO_NAME}-${VERSION}"
+          PACKAGE_NAME="${VERSION}"
           mkdir -p $PACKAGE_NAME
           cp -r bundle $PACKAGE_NAME/
-          cp -r action.yml $PACKAGE_NAME/
+          cp action.yml $PACKAGE_NAME/
           zip -r ${PACKAGE_NAME}.zip $PACKAGE_NAME/
           mkdir -p release
           mv ${PACKAGE_NAME}.zip release/
