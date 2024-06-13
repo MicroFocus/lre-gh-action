@@ -34,7 +34,7 @@ jobs:
       - name: List _actions directory contents
         run: 'ls -R /home/runner/work/_actions'
       - name: Run My GitHub Action
-        uses: MicroFocus/lre-gh-action@v1.0.1
+        uses: MicroFocus/lre-gh-action@v1.0.2
         with:
           lre_action: ExecuteLreTest
           lre_description: running new yaml test
