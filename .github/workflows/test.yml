@@ -32,7 +32,7 @@ jobs:
         with:
           node-version: '20'
       - name: Run My GitHub Action
-        uses: MicroFocus/LRE-GHA@v1.0.0
+        uses: MicroFocus/lre-gh-action@v1.0.0
         with:
           lre_action: ExecuteLreTest
           lre_description: running new yaml test
