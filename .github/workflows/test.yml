@@ -31,6 +31,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: List _actions directory contents
+        run: 'ls -R /home/runner/work/_actions'
       - name: Run My GitHub Action
         uses: MicroFocus/lre-gh-action@v1.0.1
         with:
