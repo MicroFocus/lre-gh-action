@@ -1,12 +1,11 @@
 ##################################################
-controller: LREORG1001P-C2
 group:
   - group_name: "demo_script_new"
     vusers: '2'
     #script_id: 175
     script_path: "daniel\\scripts\\demo_script_new"
     lg_name:
-      - "10.208.154.32"
+      - "LG1"
 scheduler:
   rampup: '10'
   duration: '60'
