@@ -1,7 +1,5 @@
 ![OpenText Logo](https://upload.wikimedia.org/wikipedia/commons/1/1b/OpenText_logo.svg)
 
-Note: For now this action is not yet published in GitHub marketplace and requires to be referred differently in order to be integrated and used in a workflow as an action.
-
 # LoadRunner Enterprise Test Execution Action
 This GitHub Action has for purpose to trigger and monitor a load test execution (preexisting or designed according to a yaml file in the git repo) in LRE server, eventually collect reports (analysis and trend reports) and report status.
 
@@ -80,7 +78,7 @@ jobs:
         run: npm install
 
       - name: Use LRE GitHub Action
-        uses: MicroFocus/lre-gh-action@v1
+        uses: MicroFocus/lre-gh-action@v1.0.2
         with:
           lre_action: ExecuteLreTest
           lre_description: running new yaml test
@@ -106,17 +104,16 @@ jobs:
           path: ${{ github.workspace }}/LreResult
 ```
 
-content of YamlTest/createTestFromYaml.yaml from the exemple:
+content of YamlTest/createTestFromYaml.yaml from the exemple (when using script_path parameter, the script with the mentionned path must be existing under the "subject" root of Test Plan otherwise you could use script_id parameter to refer to the script via its ID instead):
 ```yml
 ##################################################
-controller: LREORG1001P-C2
 group:
   - group_name: "demo_script_new"
     vusers: '2'
     #script_id: 175
     script_path: "daniel\\scripts\\demo_script_new"
     lg_name:
-      - "10.208.154.32"
+      - "LG1"
 scheduler:
   rampup: '10'
   duration: '60'
@@ -126,7 +123,7 @@ automatic_trending:
 ##################################################
 ```
 
-### Authenticate to LRE using username and password, execute LRE Load Test Id 176, wait for analysis and trending to complete, download the reports and upload them to build artifact.
+### Authenticate to LRE using username and password (with lre_authenticate_with_token set to true which requires providing tokens in credentials), execute LRE Load Test Id 176, wait for analysis and trending to complete, download the reports and upload them to build artifact.
 
 ```yml
 name: LRE test
@@ -162,7 +159,7 @@ jobs:
         run: npm install
 
       - name: Use My LRE GitHub Action
-        uses: ./
+        uses: MicroFocus/lre-gh-action@v1.0.2
         with:
           lre_action: ExecuteLreTest
           lre_description: running new yaml test
