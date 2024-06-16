@@ -17,8 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     name: Start a LRE load test
     env:
-      lre_username: '${{ secrets.LRE_USERNAME_TOKEN }}'
-      lre_password: '${{ secrets.LRE_PASSWORD_TOKEN }}'
+      lre_username: ${{ secrets.LRE_USERNAME }}
+      lre_password: ${{ secrets.LRE_PASSWORD }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
