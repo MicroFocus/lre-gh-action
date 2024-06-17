@@ -38,7 +38,7 @@ jobs:
         with:
           lre_action: ExecuteLreTest
           lre_description: running new yaml test
-          lre_server: lreorg1001.saas.microfocus.com/?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3
+          lre_server: ${{ secrets.LRE_SERVER }}
           lre_https_protocol: true
           lre_authenticate_with_token: true
           lre_domain: DANIEL
