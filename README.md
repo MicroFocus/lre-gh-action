@@ -74,9 +74,6 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install dependencies
-        run: npm install
-
       - name: Use LRE GitHub Action
         uses: MicroFocus/lre-gh-action@v1.0.2
         with:
@@ -155,9 +152,6 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install dependencies
-        run: npm install
-
       - name: Use My LRE GitHub Action
         uses: MicroFocus/lre-gh-action@v1.0.2
         with:
@@ -223,7 +217,7 @@ Root parameters of the YAML file:
 | vusers | Number of virtual users to allocate to the group for running the script. | Yes |
 | script_id | ID of the script in the LoadRunner Enterprise project. | Not required if the 'script_path' parameter is specified. |
 | script_path | Path and name of the script to be added to the group, separated by double backslashes (\\). For example "MyMainFolder\\MySubFolder\\MyScriptName'. Do not include the LoadRunner Enterprise root folder (named "Subject"). | Not required if 'script_id' parameter is specified |
-| lg_name | List of load generators to allocate to the group for running the script. The supported values are: <br> -   The hostname, as defined in LoadRunner Enterprise, of an existing load generator in LoadRunner Enterprise allocated as a host. -   **"LG"** followed by a number, to use an automatically matched load generator (recommended). -   **"DOCKER"** followed by a number, to use a dynamic load generator (available from Performance Center 12.62, if your project is set to work with Docker). This option requires the 'lg_elastic_configuration' parameter to be defined (see the 'lg_elastic_configuration' table below). | No |
+| lg_name | List of load generators to allocate to the group for running the script. The supported values are: <br> -   The hostname, as defined in LoadRunner Enterprise, of an existing load generator in LoadRunner Enterprise allocated as a host. <br> -   **"LG"** followed by a number, to use an automatically matched load generator (recommended). <br> -   **"DOCKER"** followed by a number, to use a dynamic load generator (available from Performance Center 12.62, if your project is set to work with Docker). This option requires the 'lg_elastic_configuration' parameter to be defined (see the 'lg_elastic_configuration' table below). | No |
 | command_line | The command line applied to the group. | No |
 | rts | Object defining the runtime settings of the script. See the 'rts' table below. | No |
 
@@ -245,7 +239,7 @@ Root parameters of the YAML file:
 | Parameter | Description | Required |
 |-----------|-------------|----------|
 | number_of_iterations | Specifies the number of iterations to run; this must be a positive number. | Yes |
-| type | Possible values for type attribute are: <br> -   **"immediately"**: ignores 'delay' and 'delay_random_range' parameters. This is the default value when no type is specified. -   **"fixed delay"**: 'delay' parameter is mandatory. -   **"random delay"**: 'delay' and 'delay_random_range' parameters are mandatory. -   **"fixed interval"**: 'delay' parameter is mandatory. -   **"random interval"**: 'delay' and 'delay_random_range' parameters are mandatory. | No |
+| type | Possible values for type attribute are: <br> -   **"immediately"**: ignores 'delay' and 'delay_random_range' parameters. This is the default value when no type is specified. <br> -   **"fixed delay"**: 'delay' parameter is mandatory. <br> -   **"random delay"**: 'delay' and 'delay_random_range' parameters are mandatory. <br> -   **"fixed interval"**: 'delay' parameter is mandatory. <br> -   **"random interval"**: 'delay' and 'delay_random_range' parameters are mandatory. | No |
 | delay | Non-negative number (less than 'delay_at_range_to_seconds' when specified). | Depends on the value provided for the 'type' parameter. |
 | delay_random_range | Non-negative number. It will be added to the value given to the 'delay' parameter (the value will be randomly chosen between the value given to 'delay' parameter and the same value to which is added the value of this parameter). | Depends on the value provided for the 'type' parameter. |
 
@@ -255,7 +249,7 @@ Root parameters of the YAML file:
 
 | Parameter | Description | Required |
 |-----------|-------------|----------|
-| type | The ThinkTime Type attribute is one of: <br> -   **"ignore"**: This is the default value when no type is specified. -   **"replay"**: Provide 'limit_seconds' parameter with value. -   **"modify"**: Provide 'limit_seconds' and 'multiply_factor' parameters with values. -   **"random"**: Provide 'limit_seconds', 'min_percentage' and 'max_percentage' parameters with values. | No |
+| type | The ThinkTime Type attribute is one of: <br> -   **"ignore"**: This is the default value when no type is specified. <br> -   **"replay"**: Provide 'limit_seconds' parameter with value. <br> -   **"modify"**: Provide 'limit_seconds' and 'multiply_factor' parameters with values. <br> -   **"random"**: Provide 'limit_seconds', 'min_percentage' and 'max_percentage' parameters with values. | No |
 | min_percentage | This must be a positive number. | Depends on the value provided for the 'type' parameter. |
 | max_percentage | This must be a positive number (it must be larger than the value provided for the 'min_percentage' parameter). | Depends on the value provided for the 'type' parameter. |
 | limit_seconds | This must be a positive number. | Depends on the value provided for the 'type' parameter. |
@@ -290,6 +284,7 @@ Root parameters of the YAML file:
 **scheduler:**
 
 | Parameter | Description | Required |
+|-----------|-------------|----------|
 | rampup | Time, in seconds, to gradually start all virtual users. Additional virtual users are added every 15 seconds until the time specified in the parameter ends. If no value is specified, all virtual users are started simultaneously at the beginning of the test. | No |
 | duration | Time, in seconds, that it will take to run the test after all virtual users are started. After this time, the test run ends. If not specified, the test will run until completion. | No |
 
