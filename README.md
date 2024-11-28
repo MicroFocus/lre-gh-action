@@ -1,11 +1,11 @@
 ![OpenText Logo](https://upload.wikimedia.org/wikipedia/commons/1/1b/OpenText_logo.svg)
 
-# LoadRunner Enterprise Test Execution Action
-This GitHub Action has for purpose to trigger and monitor a load test execution (preexisting or designed according to a yaml file in the git repo) in LRE server, eventually collect reports (analysis and trend reports) and report status.
+# OpenText Enterprise Performance Engineering Test Execution Action
+This GitHub Action has for purpose to trigger and monitor a performance test execution (preexisting or designed according to a yaml file in the git repo) in server, eventually collect reports (analysis and trend reports) and report status.
 
 ## Prerequisites
 
-1. Any workflow including this LRE action will need to have preliminary steps such as (see example below):
+1. Any workflow including this action will need to have preliminary steps such as (see example below):
  - actions/checkout@v4
  - actions/setup-java@v4 (version 11)
  - actions/setup-node@v4 followed by another step performing npm install .
@@ -18,9 +18,9 @@ This GitHub Action has for purpose to trigger and monitor a load test execution 
 |-----------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|----------------------------------------|
 | **lre_action** | action to be triggered. Current supported action: ExecuteLreTest | false | ExecuteLreTest |
 | **lre_description** | Description of the action (will be displayed in console logs) | false | |
-| **lre_server** | LRE Server, port (when not mentionned, default is 80 or 433 for secured) and tenant (when not mentionned, default is ?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3). e.g.: mylreserver.mydomain.com:81/?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3' | true |                                        |
-| **lre_https_protocol** | Use secured protocol for connecting to LRE. Possible values: true or false | false | false |
-| **lre_authenticate_with_token** | Authenticate with LRE token. Required when SSO is configured in LRE. Possible values: true or false | false | false |
+| **lre_server** | Server, port (when not mentionned, default is 80 or 433 for secured) and tenant (when not mentionned, default is ?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3). e.g.: mylreserver.mydomain.com:81/?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3' | true |                                        |
+| **lre_https_protocol** | Use secured protocol for connecting to the server. Possible values: true or false | false | false |
+| **lre_authenticate_with_token** | Authenticate with token (access key). Required when SSO is configured in the server. Possible values: true or false | false | false |
 | **lre_username** | Username | true | |
 | **lre_password** | Password | true | |
 | **lre_domain** | domain (case sensitive) | true | |
@@ -42,10 +42,10 @@ This GitHub Action has for purpose to trigger and monitor a load test execution 
 
 ## Examples
 
-### Authenticate to LRE using :LRE token provided user, create LRE Load Test according to YamlTest/createTestFromYaml.yaml file available in git repo, execute it, wait for analysis and trending to complete, download the reports and upload them to build artifact
+### Authenticate using :token (access key) provided user, create performance test according to YamlTest/createTestFromYaml.yaml file available in git repo, execute it, wait for analysis and trending to complete, download the reports and upload them to build artifact
 
 ```yml
-name: Create LRE Load Test according to YamlTest/createTestFromYaml.yaml and execute it
+name: Create performance test according to YamlTest/createTestFromYaml.yaml and execute it
 
 on:
   push:
@@ -55,7 +55,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    name: Start a LRE load test
+    name: Start a performance test
     env:
       lre_username: ${{ secrets.LRE_USERNAME }}
       lre_password: ${{ secrets.LRE_PASSWORD }}
@@ -74,7 +74,7 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Use LRE GitHub Action
+      - name: Use GitHub Action
         uses: MicroFocus/lre-gh-action@v1.0.2
         with:
           lre_action: ExecuteLreTest
@@ -120,10 +120,10 @@ automatic_trending:
 ##################################################
 ```
 
-### Authenticate to LRE using username and password (with lre_authenticate_with_token set to true which requires providing tokens in credentials), execute LRE Load Test Id 176, wait for analysis and trending to complete, download the reports and upload them to build artifact.
+### Authenticate using username and password (with lre_authenticate_with_token set to true which requires providing tokens in credentials), execute performance test, wait for analysis and trending to complete, download the reports and upload them to build artifact.
 
 ```yml
-name: LRE test
+name: test
 
 on:
   push:
@@ -133,7 +133,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    name: Execute LRE test
+    name: Execute test
     env:
       lre_username: ${{ secrets.LRE_USERNAME_TOKEN }}
       lre_password: ${{ secrets.LRE_PASSWORD_TOKEN }}
@@ -152,12 +152,12 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Use My LRE GitHub Action
+      - name: Use My GitHub Action
         uses: MicroFocus/lre-gh-action@v1.0.2
         with:
           lre_action: ExecuteLreTest
           lre_description: running new yaml test
-          lre_server: mylreserver.mydomain.com/?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3
+          lre_server: myserver.mydomain.com/?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3
           lre_https_protocol: true
           lre_authenticate_with_token: true
           lre_domain: DANIEL
@@ -182,7 +182,7 @@ jobs:
 How to import tests from YAML files saved in the Git repository
 ===============================================================
 
-Copy your YAML files to a folder in your Git repository (YAML files under the root of the Git repository will be ignored). The plugin will create the test in the LoadRunner Enterprise project according to:
+Copy your YAML files to a folder in your Git repository (YAML files under the root of the Git repository will be ignored). The plugin will create the test in the project according to:
 
 -   The file name (without extension) which will be used as test name.
 -   The location of the file in the Git repository which will be the location of the test under the root folder ('Subject') in the **Test Management** tree.
@@ -200,7 +200,7 @@ Root parameters of the YAML file:
 
 | Parameter | Description | Required |
 |-----------|-------------|----------|
-| controller | Defines the Controller to be used during the test run (it must be an available host in the LoadRunner Enterprise project). If not specified, a Controller will be chosen from the different controllers available in the LoadRunner Enterprise project. | No |
+| controller | Defines the Controller to be used during the test run (it must be an available host in the project). If not specified, a Controller will be chosen from the different controllers available in the project. | No |
 | lg_amount | Number of load generators to allocate to the test (every group in the test will be run by the same load generators). | Not required if each group defined in the 'group' parameter defines the load generators it will be using via the 'lg_name' parameter (see 'group' table below). |
 | group | Lists all groups or scripts defined in the test. The parameter to be used in each group are specified in the 'group' table below. | Yes |
 | scheduler | Defines the duration of a test, and determines whether virtual users are started simultaneously or gradually. See the 'scheduler' table below. | No |
@@ -215,9 +215,9 @@ Root parameters of the YAML file:
 |-----------|-------------|----------|
 | group_name | Name of the group (it must be a unique name if several groups are defined). | Yes |
 | vusers | Number of virtual users to allocate to the group for running the script. | Yes |
-| script_id | ID of the script in the LoadRunner Enterprise project. | Not required if the 'script_path' parameter is specified. |
-| script_path | Path and name of the script to be added to the group, separated by double backslashes (\\). For example "MyMainFolder\\MySubFolder\\MyScriptName'. Do not include the LoadRunner Enterprise root folder (named "Subject"). | Not required if 'script_id' parameter is specified |
-| lg_name | List of load generators to allocate to the group for running the script. The supported values are: <br> -   The hostname, as defined in LoadRunner Enterprise, of an existing load generator in LoadRunner Enterprise allocated as a host. <br> -   **"LG"** followed by a number, to use an automatically matched load generator (recommended). <br> -   **"DOCKER"** followed by a number, to use a dynamic load generator (available from Performance Center 12.62, if your project is set to work with Docker). This option requires the 'lg_elastic_configuration' parameter to be defined (see the 'lg_elastic_configuration' table below). | No |
+| script_id | ID of the script in the project. | Not required if the 'script_path' parameter is specified. |
+| script_path | Path and name of the script to be added to the group, separated by double backslashes (\\). For example "MyMainFolder\\MySubFolder\\MyScriptName'. Do not include the root folder (named "Subject"). | Not required if 'script_id' parameter is specified |
+| lg_name | List of load generators to allocate to the group for running the script. The supported values are: <br> -   The hostname of an existing load generator allocated as a host. <br> -   **"LG"** followed by a number, to use an automatically matched load generator (recommended). <br> -   **"DOCKER"** followed by a number, to use a dynamic load generator (available from Performance Center 12.62, if your project is set to work with Docker). This option requires the 'lg_elastic_configuration' parameter to be defined (see the 'lg_elastic_configuration' table below). | No |
 | command_line | The command line applied to the group. | No |
 | rts | Object defining the runtime settings of the script. See the 'rts' table below. | No |
 
@@ -303,15 +303,15 @@ Root parameters of the YAML file:
 
 | Parameter | Description | Required |
 |-----------|-------------|----------|
-| image_id | This number can be retrieved from: <br> -   The Administration page of LoadRunner Enterprise (you might need to turn to your LoadRunner Enterprise administrator as accessing this page requires admin privileges): select the **Orchestration** section -> switch to **Docker Images** tab -> you will have the list of all available Docker images for Load Generator purposes with their ID. You can make sure the images are available to your project from the **Orchestrators** tab. <br> -   A LoadRunner Enterprise Rest API command applied on the project (replace the bracketed values): GET - [http(s)://(PCServer):(PortNumber)/LoadTest/rest/domains/(DomainName)/projects/(ProjectName)/dockerimages/](file:///C:/GIT/plugins/micro-focus-performance-center-integration-plugin/src/main/resources/com/microfocus/performancecenter/integration/pcgitsync/PcGitSyncBuilder/help-importTests.html#) and select any valid image not having the value 'controller' for purpose. | Yes if one of the load generator is defined to be provisioned from Docker image. |
-| memory_limit | This parameter can be retrieved from **LoadRunner Enterprise Application** -> **Test Management** -> edit a test -> Press **Assign LG** button -> in the **Elastic** section, select **DOCKER1** -> select the relevant image (based on the image name) -> use the values provided in the 'Memory(GB)' dropdown list (if not specified, this parameter should be ignored). | Yes, if the image is defined with resource limits |
-| cpu_limit | This parameter can be retrieved from **LoadRunner Enterprise Application** -> **Test Management** -> edit a test -> Press **Assign LG** button -> in the **Elastic** section, select **DOCKER1** -> select the relevant image (based on the image name) -> use the values provided in the 'CUPs' dropdown list (if not specified, this parameter should be ignored). | Yes, if the image is defined with resource limits |
+| image_id | This number can be retrieved from: <br> -   The Administration page (you might need to turn to your administrator as accessing this page requires admin privileges): select the **Orchestration** section -> switch to **Docker Images** tab -> you will have the list of all available Docker images for Load Generator purposes with their ID. You can make sure the images are available to your project from the **Orchestrators** tab. <br> -   A OpenText Enterprise Performance Engineering Rest API command applied on the project (replace the bracketed values): GET - [http(s)://(PCServer):(PortNumber)/LoadTest/rest/domains/(DomainName)/projects/(ProjectName)/dockerimages/](file:///C:/GIT/plugins/micro-focus-performance-center-integration-plugin/src/main/resources/com/microfocus/performancecenter/integration/pcgitsync/PcGitSyncBuilder/help-importTests.html#) and select any valid image not having the value 'controller' for purpose. | Yes if one of the load generator is defined to be provisioned from Docker image. |
+| memory_limit | This parameter can be retrieved from **Application** -> **Test Management** -> edit a test -> Press **Assign LG** button -> in the **Elastic** section, select **DOCKER1** -> select the relevant image (based on the image name) -> use the values provided in the 'Memory(GB)' dropdown list (if not specified, this parameter should be ignored). | Yes, if the image is defined with resource limits |
+| cpu_limit | This parameter can be retrieved from **Application** -> **Test Management** -> edit a test -> Press **Assign LG** button -> in the **Elastic** section, select **DOCKER1** -> select the relevant image (based on the image name) -> use the values provided in the 'CUPs' dropdown list (if not specified, this parameter should be ignored). | Yes, if the image is defined with resource limits |
 
 * * * * *
 
 In the example below:
 
--   The plugin automatically assigns the file name as the test name, and the folder path of the file in the Git repository is used to create the location of the test under the root folder ('Subject') in the LoadRunner Enterprise project.
+-   The plugin automatically assigns the file name as the test name, and the folder path of the file in the Git repository is used to create the location of the test under the root folder ('Subject') in the project.
 -   In the content:
     -   Since no Controller and no load generator amount were specified, a random available Controller will be allocated to the test just before it is run and the 'lg_name' parameter specified in each group will be used.
     -   In the 'group' parameter:
@@ -349,7 +349,7 @@ scheduler:
 
 In the example below:
 
--   The plugin automatically assigns the file name as the test name, and the folder path of the file in the Git repository is used to create the location of the test under the root folder ('Subject') in the LoadRunner Enterprise project.
+-   The plugin automatically assigns the file name as the test name, and the folder path of the file in the Git repository is used to create the location of the test under the root folder ('Subject') in the project.
 -   Since the 'controller' and the 'lg_amount' parameters are specified, the specified Controller will be used to run the test and three automatch load generators will be used and shared by all groups.
 -   The content of the file is defined with seven groups, all being set with the "rts" parameter:
     -   The "pacing" parameter is used with different options for all groups.
