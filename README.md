@@ -75,7 +75,7 @@ jobs:
           node-version: '20'
 
       - name: Use GitHub Action
-        uses: MicroFocus/lre-gh-action@v1.0.2
+        uses: MicroFocus/lre-gh-action@v1.0.3
         with:
           lre_action: ExecuteLreTest
           lre_description: running new yaml test
@@ -153,7 +153,7 @@ jobs:
           node-version: '20'
 
       - name: Use My GitHub Action
-        uses: MicroFocus/lre-gh-action@v1.0.2
+        uses: MicroFocus/lre-gh-action@v1.0.3
         with:
           lre_action: ExecuteLreTest
           lre_description: running new yaml test
