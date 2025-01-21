@@ -1,5 +1,5 @@
-name: 'LoadRunner Enterprise Test Execution Action'
-description: 'Run test in LoadRunner Enterprise'
+name: 'OpenText Enterprise Performance Engineering Test Execution Action'
+description: 'Run test in OpenText Enterprise Performance Engineering'
 author: 'OpenText'
 branding:
   color: 'blue'
@@ -13,16 +13,16 @@ inputs:
     required: false
   lre_server:
     description: >-
-      'LRE Server, port (when not mentionned, default is 80 or 433 for secured) 
+      'Server, port (when not mentionned, default is 80 or 433 for secured) 
       and tenant (when not mentionned, default is ?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3). 
-      e.g.: mylreserver.mydomain.com:81/?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3'
+      e.g.: myserver.mydomain.com:81/?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3'
     required: true
   lre_https_protocol:
     description: 'Use secured protocol for connecting to LRE. Possible values: true or false'
     required: false
     default: 'false'
   lre_authenticate_with_token:
-    description: 'Authenticate with LRE token. Required when SSO is configured in LRE. Possible values: true or false'
+    description: 'Authenticate with token (access key). Required when SSO is configured in the server. Possible values: true or false'
     required: false
     default: 'false'  
   lre_username:
