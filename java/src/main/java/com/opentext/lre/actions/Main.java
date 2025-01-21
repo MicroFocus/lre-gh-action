@@ -21,7 +21,6 @@ public class Main
     private static final int PORT = 57395;
     private static ServerSocket serverSocket;
     private static LreTestRunModel lreTestRunModel;
-    //public static final String artifactsResourceName = "LreResult";
 
     public static void main( String[] args ) throws Exception {
         int exit = 0;
@@ -61,31 +60,15 @@ public class Main
     }
 
     private static void initEnvironmentVariables(String[] args) throws Exception {
-            InputRetriever inputRetriever = new InputRetriever(args);
-            lreTestRunModel = inputRetriever.getLreTestRunModel();
+        InputRetriever inputRetriever = new InputRetriever(args);
+        lreTestRunModel = inputRetriever.getLreTestRunModel();
     }
 
     private static int performOperations() {
         int exit = 0;
         try {
             if (lreTestRunModel != null) {
-                DateFormatter dateFormatter = new DateFormatter("_E_yyyy_MMM_dd_'at'_HH_mm_ss_SSS_a_zzz");
-                String logFileName = "lre_run_test_" + dateFormatter.getDate() + ".log";
-                File dir = new File(Paths.get(lreTestRunModel.getWorkspace(), artifactsResourceName, logFileName).toString());
-                if(!dir.getParentFile().exists()) {
-                    try {
-                        Files.createDirectory(dir.getParentFile().toPath());
-                    } catch (IOException e) {
-                        if(!dir.getParentFile().exists()) {
-                            boolean isDirectoryCreated = dir.getParentFile().mkdirs();
-                            if (isDirectoryCreated) {
-                                throw new IOException("could not create directory " + dir.getParentFile().toString());
-                            }
-                        }
-                    }
-                }
-                LogHelper.setup(dir.getAbsolutePath(), lreTestRunModel.isEnableStacktrace());
-                LogHelper.log(LocalizationManager.getString("BeginningLRETestExecution"), true);
+                PrepareLogger();
                 LreTestRunBuilder lreTestRunBuilder = new LreTestRunBuilder(lreTestRunModel);
                 boolean buildSuccess = lreTestRunBuilder.perform();
                 if(buildSuccess) {
@@ -104,5 +87,25 @@ public class Main
             LogHelper.logStackTrace(ex);
         }
         return exit;
+    }
+
+    private static void PrepareLogger() throws IOException {
+        DateFormatter dateFormatter = new DateFormatter("_E_yyyy_MMM_dd_'at'_HH_mm_ss_SSS_a_zzz");
+        String logFileName = "lre_run_test_" + dateFormatter.getDate() + ".log";
+        File dir = new File(Paths.get(lreTestRunModel.getWorkspace(), artifactsResourceName, logFileName).toString());
+        if(!dir.getParentFile().exists()) {
+            try {
+                Files.createDirectory(dir.getParentFile().toPath());
+            } catch (IOException e) {
+                if(!dir.getParentFile().exists()) {
+                    boolean isDirectoryCreated = dir.getParentFile().mkdirs();
+                    if (isDirectoryCreated) {
+                        throw new IOException("could not create directory " + dir.getParentFile().toString());
+                    }
+                }
+            }
+        }
+        LogHelper.setup(dir.getAbsolutePath(), lreTestRunModel.isEnableStacktrace());
+        LogHelper.log(LocalizationManager.getString("BeginningLRETestExecution"), true);
     }
 }

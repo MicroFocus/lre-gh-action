@@ -1,6 +1,7 @@
 package com.opentext.lre.actions.runtest;
 
 import com.microfocus.adm.performancecenter.plugins.common.pcentities.*;
+import com.opentext.lre.actions.common.helpers.OutputUpdater;
 import com.opentext.lre.actions.common.helpers.LocalizationManager;
 import com.opentext.lre.actions.common.helpers.constants.LreTestRunHelper;
 import com.opentext.lre.actions.common.helpers.result.model.junit.Error;
@@ -69,7 +70,7 @@ public class LreTestRunBuilder {
     public static final String PUBLISHING = "Publishing";
     public static final String ERROR = "Error";
     private static final String artifactsDirectoryName = "LreResult";
-    private static final String RUNID_BUILD_VARIABLE = "PC_RUN_ID";
+    private static final String RUNID_BUILD_VARIABLE = "lre_run_id";
     private String junitResultsFileName;
 
     //private transient static Run<?, ?> _run;
@@ -108,6 +109,7 @@ public class LreTestRunBuilder {
     private File lreReportFile;
     private File lreNVInsgithsFile;
     private BuildStatus buildStatus;
+    private OutputUpdater outputUpdater;
     public BuildStatus getBuildStatus() {
         return buildStatus;
     }
@@ -177,6 +179,7 @@ public class LreTestRunBuilder {
         this.workspace = Paths.get(workspace);
         this.buildStatus = BuildStatus.Initiated;
         this.enableStackTrace = enableStackTrace;
+        this.outputUpdater = new OutputUpdater(this.workspace);
     }
 
     private static String getLreServerAndPort(String lreServerAndPort) {
@@ -217,7 +220,6 @@ public class LreTestRunBuilder {
                 lreTestRunModel.isEnableStacktrace(),
                 lreTestRunModel.getWorkspace());
         this.lreTestRunModel = lreTestRunModel;
-
     }
 
 
@@ -334,9 +336,6 @@ public class LreTestRunBuilder {
         }
         try {
             publishRunIdVariable(runId);
-            LogHelper.log("%s: %s = %s \n", true,
-                    LocalizationManager.getString("SetEnvironmentVariable"),
-                    RUNID_BUILD_VARIABLE, runId);
             response = lreTestRunClient.waitForRunCompletion(runId);
             if (response != null && RunState.get(response.getRunState()) == FINISHED &&
                     getLreTestRunModel().getPostRunAction() != PostRunAction.DO_NOTHING) {
@@ -423,11 +422,12 @@ public class LreTestRunBuilder {
                 artifactsDirectoryName);
     }
 
-    private String publishRunIdVariable(int runId) {
+    private void publishRunIdVariable(int runId) {
         //verify if there is a way to publish runid
-        String message = String.format("publishRunIdVariable for %s", runId);
-        LogHelper.log(message, true);
-        return message;
+        LogHelper.log("publish RunId Variable \n%s=%s", true, RUNID_BUILD_VARIABLE, runId);
+        if(outputUpdater != null) {
+            outputUpdater.updateParameter(String.valueOf(runId));
+        }
     }
 
     private String buildEventLogString(PcRunEventLog eventLog) {

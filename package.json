@@ -1,6 +1,6 @@
 {
   "name": "lre-gh-action",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "GitHub Action for OpenText Enterprise Performance Engineering",
   "main": "src/index.js",
   "scripts": {
@@ -13,7 +13,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MicroFocus/LRE-GHA.git"
+    "url": "git+https://github.com/MicroFocus/lre-gh-action.git"
   },
   "private": true,
   "author": "OpenText",
@@ -25,13 +25,13 @@
   ],
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/MicroFocus/LRE-GHA/issues"
+    "url": "https://github.com/MicroFocus/lre-gh-action/issues"
   },
-  "homepage": "https://github.com/MicroFocus/LRE-GHA#readme",
+  "homepage": "https://github.com/MicroFocus/lre-gh-action/blob/main/README.md",
   "dependencies": {
     "@actions/core": "^1.10.1",
     "child_process": "^1.0.2",
-    "fs": "^0.0.1-security",
+    "fs-extra": "^11.3.0",
     "path": "^0.12.7"
   },
   "devDependencies": {
@@ -39,9 +39,9 @@
     "@babel/preset-env": "^7.14.7",
     "@types/node": "^20.12.12",
     "@vercel/ncc": "^0.38.1",
-    "babel-loader": "^8.3.0",
+    "babel-loader": "^8.4.1",
     "dotenv": "^16.4.5",
-    "webpack": "^5.91.0",
+    "webpack": "^5.97.1",
     "webpack-cli": "^4.7.2"
   }
 }
