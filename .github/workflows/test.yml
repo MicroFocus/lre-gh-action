@@ -17,8 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     name: Start a LRE load test
     env:
-      lre_username: ${{ secrets.LRE_USERNAME }}
-      lre_password: ${{ secrets.LRE_PASSWORD }}
+      lre_username: ${{ secrets.LRE_USERNAME2 }}
+      lre_password: ${{ secrets.LRE_PASSWORD2 }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -38,18 +38,18 @@ jobs:
         with:
           lre_action: ExecuteLreTest
           lre_description: running new yaml test
-          lre_server: ${{ secrets.LRE_SERVER }}
+          lre_server: ${{ secrets.LRE_SERVER2 }}
           lre_https_protocol: true
           lre_authenticate_with_token: true
-          lre_domain: DANIEL
-          lre_project: proj1
-          lre_test: YamlTest/createTestFromYaml.yaml
+          lre_domain: ibab
+          lre_project: ibab_ob
+          lre_test: 181
           lre_test_instance: AUTO
           lre_timeslot_duration_hours: 0
           lre_timeslot_duration_minutes: 30
           lre_post_run_action: Collate and Analyze
           lre_vuds_mode: false
-          lre_trend_report: ASSOCIATED
+          lre_trend_report: 8
           lre_status_by_sla: false
           lre_output_dir: ${{ github.workspace }}
           lre_enable_stacktrace: true
