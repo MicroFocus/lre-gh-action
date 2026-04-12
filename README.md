@@ -9,7 +9,7 @@ This GitHub Action is intended to:
 
 1. Any workflow including this action will need to have preliminary steps such as (see example below):
  - actions/checkout@v4
- - actions/setup-java@v4 (version 11)
+ - actions/setup-java@v4 (version 17)
  - actions/setup-node@v4 followed by another step running `npm install`.
 2. Usernames and passwords will need to be saved as secrets and used as environment variables in the workflow.
 3. If you want to save reports as build artifacts, you can add the following step: actions/upload-artifact@v4 (see example below).
@@ -90,7 +90,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: adopt
-          java-version: '11'
+          java-version: '17'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -168,7 +168,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: adopt
-          java-version: '11'
+          java-version: '17'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -224,7 +224,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: adopt
-          java-version: '11'
+          java-version: '17'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
