@@ -49,7 +49,7 @@ jobs:
         run: npm run buildWebpackU
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
           name: collect action descriptor and npm build
           path: |
