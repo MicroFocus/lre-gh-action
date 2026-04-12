@@ -1,48 +1,71 @@
 ![OpenText Logo](https://upload.wikimedia.org/wikipedia/commons/1/1b/OpenText_logo.svg)
 
 # OpenText Enterprise Performance Engineering Test Execution Action
-This GitHub Action has for purpose to trigger and monitor a performance test execution (preexisting or designed according to a yaml file in the git repo) in server, eventually collect reports (analysis and trend reports) and report status.
+This GitHub Action is intended to:
+- Trigger and monitor a performance test execution (preexisting or designed according to a YAML file in the GitHub repository) on the server, optionally collect reports (analysis and trend reports), and report status.
+- Upload scripts from a workspace to a project on an OpenText Enterprise Performance Engineering server.
 
 ## Prerequisites
 
 1. Any workflow including this action will need to have preliminary steps such as (see example below):
  - actions/checkout@v4
  - actions/setup-java@v4 (version 11)
- - actions/setup-node@v4 followed by another step performing npm install .
+ - actions/setup-node@v4 followed by another step running `npm install`.
 2. Usernames and passwords will need to be saved as secrets and used as environment variables in the workflow.
-3. if you wish to save the reports to build artifact, you can add the following step: actions/upload-artifact@v4 (see example below).
+3. If you want to save reports as build artifacts, you can add the following step: actions/upload-artifact@v4 (see example below).
 
 ## Action Inputs
 
-| Input                             | Description                                                                                                                                                                                                                      | Required | Default                                |
-|-----------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|----------------------------------------|
-| **lre_action** | action to be triggered. Current supported action: ExecuteLreTest | false | ExecuteLreTest |
-| **lre_description** | Description of the action (will be displayed in console logs) | false | |
-| **lre_server** | Server, port (when not mentionned, default is 80 or 433 for secured) and tenant (when not mentionned, default is ?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3). e.g.: mylreserver.mydomain.com:81/?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3' | true |                                        |
-| **lre_https_protocol** | Use secured protocol for connecting to the server. Possible values: true or false | false | false |
-| **lre_authenticate_with_token** | Authenticate with token (access key). Required when SSO is configured in the server. Possible values: true or false | false | false |
-| **lre_username** | Username | true | |
-| **lre_password** | Password | true | |
-| **lre_domain** | domain (case sensitive) | true | |
-| **lre_project** |  project (case sensitive) | true | |
-| **lre_test** |valid test ID# or relative path to yaml file in git repo defining new test design creation | true | |
-| **lre_test_instance** | either specify AUTO to use any instance or a specific instance ID | false | AUTO |
-| **lre_timeslot_duration_hours** | timeslot duration in hours | false | 0 |
-| **lre_timeslot_duration_minutes** | timeslot duration in minutes | false | 30 |
-| **lre_post_run_action** | Possible values for post run action: 'Collate Results', 'Collate and Analyze' or 'Do Not Collate' | false | Do Not Collate |
-| **lre_vuds_mode** | Use VUDS licenses. Possible values: true or false | false | false |
-| **lre_trend_report** | The possible values (no value or not defined means no trend monitoring in build but will not cancel trend report defined in LRE): ASSOCIATED (the trend report defined in the test design will be used') or specify valid report ID# | false | |
-| **lre_proxy_out_url** | proxy URL | false | |
-| **lre_username_proxy** | proxy username | false | |
-| **lre_password_proxy** | proxy password | false | |
-| **lre_search_timeslot** | Experimental: Search for matching timeslot instead of creating a new timeslot. Possible values: true or false | false | false |
-| **lre_status_by_sla** | Report success status according to SLA. Possible values: true or false | false | false |
-| **lre_output_dir** | The directory to read the checkout folder and to save results (use ${{ github.workspace }}) | false | ./ |
-| **lre_enable_stacktrace** | if set to true, stacktrace of exception will be displayed with error occur reported in console logs  | false | false |
+The action supports two operation modes:
+- `ExecuteLreTest`: trigger and monitor a performance test run.
+- `WorkspaceSync`: scan a local workspace and upload detected scripts to OpenText Enterprise Performance Engineering.
+
+### Required Parameters
+
+| Input | Description | Action |
+|---|---|---|
+| **lre_server** | Server, port (when not mentioned, default is 80 or 433 for secure), and tenant (when not mentioned, default is `?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3`). Example: `mylreserver.mydomain.com:81/?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3` | Both |
+| **lre_username** | Username | Both |
+| **lre_password** | Password | Both |
+| **lre_domain** | Domain (case sensitive) | Both |
+| **lre_project** | Project (case sensitive) | Both |
+| **lre_test** | Valid test ID# or relative path to a YAML file in the GitHub repository that defines new test design creation | ExecuteLreTest |
+
+### Optional Parameters
+
+| Input | Description | Action | Default |
+|---|---|---|---|
+| **lre_action** | Action to be triggered. Supported values: ExecuteLreTest, WorkspaceSync. If not defined, ExecuteLreTest is used. | Both | ExecuteLreTest |
+| **lre_description** | Description of the action (displayed in logs) | Both | |
+| **lre_https_protocol** | Use secured protocol for connecting to the server. Possible values: true or false | Both | true |
+| **lre_authenticate_with_token** | Authenticate with token (access key). Required when SSO is configured in the server. Possible values: true or false | Both | false |
+| **lre_workspace_dir** | Local workspace root path. For WorkspaceSync this is the directory scanned for scripts and where logs are written to `<workspace>/logs` | Both | `${{ github.workspace }}` |
+| **lre_test_instance** | Specify AUTO to use any instance or a specific instance ID | ExecuteLreTest | AUTO |
+| **lre_timeslot_duration_hours** | Timeslot duration in hours | ExecuteLreTest | 0 |
+| **lre_timeslot_duration_minutes** | Timeslot duration in minutes | ExecuteLreTest | 30 |
+| **lre_post_run_action** | Possible values: 'Collate Results', 'Collate and Analyze', or 'Do Not Collate' | ExecuteLreTest | Do Not Collate |
+| **lre_vuds_mode** | Use VUDS licenses. Possible values: true or false | ExecuteLreTest | false |
+| **lre_trend_report** | Possible values: ASSOCIATED, a valid report ID#, or blank for no trend monitoring in build | ExecuteLreTest | |
+| **lre_proxy_out_url** | Proxy URL | Both | |
+| **lre_username_proxy** | Proxy username | Both | |
+| **lre_password_proxy** | Proxy password | Both | |
+| **lre_search_timeslot** | Experimental: search for matching timeslot instead of creating a new one. Possible values: true or false | ExecuteLreTest | false |
+| **lre_status_by_sla** | Report success status according to SLA. Possible values: true or false | ExecuteLreTest | false |
+| **lre_output_dir** | Directory to read the checkout folder and to save results (use `${{ github.workspace }}`) | ExecuteLreTest | ./ |
+| **lre_runtime_only** | WorkspaceSync only. Upload scripts in runtime-only mode. Possible values: true or false | WorkspaceSync | true |
+| **lre_enable_stacktrace** | If true, exception stacktrace is displayed in logs | Both | false |
+
+### WorkspaceSync behavior
+
+When `lre_action` is set to `WorkspaceSync`, the action scans `lre_workspace_dir` recursively and uploads script folders found in the workspace hierarchy. A folder is treated as a script folder when it contains one of the supported script formats (for example `.usr`, `.jmx`, `.java`) or DevWeb script markers (`main.js` and `rts.yml`).
+
+Each detected script folder is zipped and uploaded to the matching subject path in OpenText Enterprise Performance Engineering, preserving the relative folder structure under `Subject`.
+
+The sync result is considered successful when at least 50% of script uploads succeed. The process also stops early after 5 consecutive upload failures.
 
 ## Examples
 
-### Authenticate using :token (access key) provided user, create performance test according to YamlTest/createTestFromYaml.yaml file available in git repo, execute it, wait for analysis and trending to complete, download the reports and upload them to build artifact
+### Authenticate using a `:token` (access key), create a performance test from `YamlTest/createTestFromYaml.yaml` in the GitHub repository, execute it, wait for analysis and trending to complete, download reports, and upload them as build artifacts
 
 ```yml
 name: Create performance test according to YamlTest/createTestFromYaml.yaml and execute it
@@ -101,7 +124,7 @@ jobs:
           path: ${{ github.workspace }}/LreResult
 ```
 
-content of YamlTest/createTestFromYaml.yaml from the exemple (when using script_path parameter, the script with the mentionned path must be existing under the "subject" root of Test Plan otherwise you could use script_id parameter to refer to the script via its ID instead):
+Content of `YamlTest/createTestFromYaml.yaml` from the example (when using `script_path`, the script with the mentioned path must exist under the `Subject` root of Test Plan. Otherwise, you can use `script_id` to refer to the script by its ID):
 ```yml
 ##################################################
 group:
@@ -120,7 +143,7 @@ automatic_trending:
 ##################################################
 ```
 
-### Authenticate using username and password (with lre_authenticate_with_token set to true which requires providing tokens in credentials), execute performance test, wait for analysis and trending to complete, download the reports and upload them to build artifact.
+### Authenticate using username and password (with `lre_authenticate_with_token` set to true, which requires token credentials), execute a performance test, wait for analysis and trending to complete, download reports, and upload them as build artifacts.
 
 ```yml
 name: test
@@ -179,6 +202,50 @@ jobs:
           path: ${{ github.workspace }}/LreResult
 ```
 
+### Synchronize scripts from repository workspace to OpenText Enterprise Performance Engineering (WorkspaceSync)
+
+```yml
+name: Synchronize scripts to OpenText Enterprise Performance Engineering
+
+on:
+  workflow_dispatch:
+
+jobs:
+  workspace-sync:
+    runs-on: ubuntu-latest
+    env:
+      lre_username: ${{ secrets.LRE_USERNAME }}
+      lre_password: ${{ secrets.LRE_PASSWORD }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: adopt
+          java-version: '11'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Synchronize scripts
+        uses: MicroFocus/lre-gh-action@v1.0.3
+        with:
+          lre_action: WorkspaceSync
+          lre_description: synchronize scripts from workspace
+          lre_server: myserver.mydomain.com/?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3
+          lre_https_protocol: true
+          lre_authenticate_with_token: false
+          lre_domain: DANIEL
+          lre_project: proj1
+          lre_workspace_dir: ${{ github.workspace }}
+          lre_runtime_only: true
+          lre_enable_stacktrace: true
+```
+
 How to import tests from YAML files saved in the Git repository
 ===============================================================
 
@@ -202,7 +269,7 @@ Root parameters of the YAML file:
 |-----------|-------------|----------|
 | controller | Defines the Controller to be used during the test run (it must be an available host in the project). If not specified, a Controller will be chosen from the different controllers available in the project. | No |
 | lg_amount | Number of load generators to allocate to the test (every group in the test will be run by the same load generators). | Not required if each group defined in the 'group' parameter defines the load generators it will be using via the 'lg_name' parameter (see 'group' table below). |
-| group | Lists all groups or scripts defined in the test. The parameter to be used in each group are specified in the 'group' table below. | Yes |
+| group | Lists all groups or scripts defined in the test. The parameters used in each group are specified in the 'group' table below. | Yes |
 | scheduler | Defines the duration of a test, and determines whether virtual users are started simultaneously or gradually. See the 'scheduler' table below. | No |
 | lg_elastic_configuration | Defines the image to be used in order to provision load generators. See the 'lg_elastic_configuration' table below. Available from Performance Center 12.62 and plugin version 1.1.1. | Yes, if a load generator is defined to be provisioned from a Docker image. |
 | automatic_trending | Defines association to existing trend report. | No |
@@ -262,7 +329,7 @@ Root parameters of the YAML file:
 | Parameter | Description | Required |
 |-----------|-------------|----------|
 | jdk_home | The JDK installation path. | No |
-| java_vm_parameters | List the Java command line parameters. These parameters can be any JVM argument. The common arguments are the debug flag (-verbose) or memory settings (-ms, -mx). In additional, you can also pass properties to Java applications in the form of a -D flag. | No |
+| java_vm_parameters | List the Java command line parameters. These parameters can be any JVM argument. Common arguments are the debug flag (-verbose) or memory settings (-ms, -mx). In addition, you can pass properties to Java applications in the form of a -D flag. | No |
 | use_xboot | Boolean: Instructs VuGen to add the Classpath before the Xbootclasspath (prepend the string). | No |
 | enable_classloader_per_vuser | Boolean: Loads each Virtual User using a dedicated class loader (runs Vusers as threads). | No |
 | java_env_class_paths | A list of classpath entries. Use a double backslash (\\) for folder separators. | No |
@@ -277,7 +344,7 @@ Root parameters of the YAML file:
 | jmeter_home_path | Path to JMeter home. If not defined, the path from the %JMETER_HOME% environment variable is used. | No |
 | jmeter_min_port | This number must be lower than the value provided in the 'jmeter_max_port' parameter. Both 'jmeter_min_port' and 'jmeter_max_port' parameters must be specified otherwise the default port values is used. | No |
 | jmeter_max_port | This number must be higher than the value provided in the 'jmeter_min_port' parameter. Both 'jmeter_min_port' and 'jmeter_max_port' parameters must be specified otherwise the default port values is used. | No |
-| jmeter_additional_properties | JMeter additional properties file. Use double slash (\\) for folder separator. | No |
+| jmeter_additional_properties | JMeter additional properties file. Use double backslashes (\\) for folder separators. | No |
 
 * * * * *
 
@@ -294,7 +361,7 @@ Root parameters of the YAML file:
 
 | Parameter | Description | Required |
 |-----------|-------------|----------|
-| report_id | Id of the trend report to associate the test run analysis with. | No |
+| report_id | ID of the trend report to associate the test run analysis with. | No |
 | max_runs_in_report | Maximum trends in a report (default is 10 if not specified). | No |
 
 * * * * *
@@ -303,9 +370,9 @@ Root parameters of the YAML file:
 
 | Parameter | Description | Required |
 |-----------|-------------|----------|
-| image_id | This number can be retrieved from: <br> -   The Administration page (you might need to turn to your administrator as accessing this page requires admin privileges): select the **Orchestration** section -> switch to **Docker Images** tab -> you will have the list of all available Docker images for Load Generator purposes with their ID. You can make sure the images are available to your project from the **Orchestrators** tab. <br> -   A OpenText Enterprise Performance Engineering Rest API command applied on the project (replace the bracketed values): GET - [http(s)://(PCServer):(PortNumber)/LoadTest/rest/domains/(DomainName)/projects/(ProjectName)/dockerimages/](file:///C:/GIT/plugins/micro-focus-performance-center-integration-plugin/src/main/resources/com/microfocus/performancecenter/integration/pcgitsync/PcGitSyncBuilder/help-importTests.html#) and select any valid image not having the value 'controller' for purpose. | Yes if one of the load generator is defined to be provisioned from Docker image. |
+| image_id | This number can be retrieved from: <br> -   The Administration page (you might need to turn to your administrator, as accessing this page requires admin privileges): select the **Orchestration** section -> switch to **Docker Images** tab -> you will have the list of all available Docker images for Load Generator purposes with their ID. You can make sure the images are available to your project from the **Orchestrators** tab. <br> -   An OpenText Enterprise Performance Engineering REST API command applied on the project (replace the bracketed values): GET - [http(s)://(PCServer):(PortNumber)/LoadTest/rest/domains/(DomainName)/projects/(ProjectName)/dockerimages/](file:///C:/GIT/plugins/micro-focus-performance-center-integration-plugin/src/main/resources/com/microfocus/performancecenter/integration/pcgitsync/PcGitSyncBuilder/help-importTests.html#) and select any valid image not having the value 'controller' for purpose. | Yes, if one of the load generators is defined to be provisioned from a Docker image. |
 | memory_limit | This parameter can be retrieved from **Application** -> **Test Management** -> edit a test -> Press **Assign LG** button -> in the **Elastic** section, select **DOCKER1** -> select the relevant image (based on the image name) -> use the values provided in the 'Memory(GB)' dropdown list (if not specified, this parameter should be ignored). | Yes, if the image is defined with resource limits |
-| cpu_limit | This parameter can be retrieved from **Application** -> **Test Management** -> edit a test -> Press **Assign LG** button -> in the **Elastic** section, select **DOCKER1** -> select the relevant image (based on the image name) -> use the values provided in the 'CUPs' dropdown list (if not specified, this parameter should be ignored). | Yes, if the image is defined with resource limits |
+| cpu_limit | This parameter can be retrieved from **Application** -> **Test Management** -> edit a test -> Press **Assign LG** button -> in the **Elastic** section, select **DOCKER1** -> select the relevant image (based on the image name) -> use the values provided in the 'CPUs' dropdown list (if not specified, this parameter should be ignored). | Yes, if the image is defined with resource limits |
 
 * * * * *
 

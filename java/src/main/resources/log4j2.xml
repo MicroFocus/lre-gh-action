@@ -6,15 +6,28 @@
                 <Pattern>%d{yyyy-MM-dd HH:mm:ss} %-5level - %msg%n</Pattern>
             </PatternLayout>
         </Console>
+        <File name="MainFileAppender" fileName="${sys:log.file}" immediateFlush="true" append="true">
+            <PatternLayout>
+                <Pattern>%d{yyyy-MM-dd HH:mm:ss} %-5level - %msg%n</Pattern>
+            </PatternLayout>
+        </File>
     </Appenders>
 
     <Loggers>
+        <!-- Silence noisy HTTP client cookies -->
         <Logger name="org.apache.http.client.protocol.ResponseProcessCookies" level="ERROR" additivity="false">
             <AppenderRef ref="Console"/>
+            <AppenderRef ref="MainFileAppender"/>
         </Logger>
-
-        <Root level="info">
+        <!-- Suppress java.util.logging warnings from HTTP client -->
+        <Logger name="org.apache.http" level="ERROR" additivity="false">
             <AppenderRef ref="Console"/>
+            <AppenderRef ref="MainFileAppender"/>
+        </Logger>
+        <!-- Root logger -->
+        <Root level="INFO">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="MainFileAppender"/>
         </Root>
     </Loggers>
 </Configuration>

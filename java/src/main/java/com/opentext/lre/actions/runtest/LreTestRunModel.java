@@ -2,27 +2,17 @@ package com.opentext.lre.actions.runtest;
 
 import com.microfocus.adm.performancecenter.plugins.common.pcentities.PostRunAction;
 import com.opentext.lre.actions.common.helpers.constants.LreTestRunHelper;
+import com.opentext.lre.actions.common.model.LreBaseModel;
 
-public class LreTestRunModel {
+public class LreTestRunModel extends LreBaseModel {
 
     // <editor-fold default-state="collapsed" desc="fields">
-    private final String lreServerAndPort;
-    private final String username;
-    private final String password;
-    private final String domain;
-    private final String project;
     private final String testToRun;
     private final String testContentToCreate;
     private final String autoTestInstanceID;
     private final PostRunAction postRunAction;
     private final boolean vudsMode;
-    private final String description;
     private final String addRunToTrendReport;
-    private final boolean httpsProtocol;
-    private final String proxyOutURL;
-    private final String usernameProxy;
-    private final String passwordProxy;
-    private final boolean authenticateWithToken;
     private final boolean searchTimeslot;
     private String testId;
     private String testInstanceId;
@@ -36,7 +26,7 @@ public class LreTestRunModel {
     private String timeslotDurationMinutes;
     private boolean statusBySla;
     private boolean enableStacktrace;
-    private String workspace;
+    private String output;
 
     // </editor-fold>
 
@@ -70,12 +60,11 @@ public class LreTestRunModel {
                            boolean searchTimeslot,
                            boolean statusBySla,
                            boolean enableStacktrace,
+                           String output,
                            String workspace) {
-        this.lreServerAndPort = getCorrectLreServerAndPort(lreServerAndPort);
-        this.username = username;
-        this.password = password;
-        this.domain = domain;
-        this.project = project;
+        super(lreServerAndPort, httpsProtocol, username, password, domain, project,
+              proxyOutURL, usernameProxy, passwordProxy, authenticateWithToken,
+              enableStacktrace, workspace, description);
         this.testToRun = testToRun;
         this.testId = testId;
         this.testContentToCreate = testContentToCreate;
@@ -85,30 +74,17 @@ public class LreTestRunModel {
         this.timeslotDurationMinutes = timeslotDurationMinutes;
         this.postRunAction = postRunAction;
         this.vudsMode = vudsMode;
-        this.description = description;
         this.addRunToTrendReport = addRunToTrendReport;
-        this.httpsProtocol = httpsProtocol;
         this.trendReportId = trendReportId;
-        this.proxyOutURL = proxyOutURL;
-        this.usernameProxy = usernameProxy;
-        this.passwordProxy = passwordProxy;
         this.buildParameters = "";
         this.retry = retry;
         this.retryDelay = LreTestRunHelper.verifyStringValueIsIntAndPositive(retryDelay, 5);
         this.retryOccurrences = LreTestRunHelper.verifyStringValueIsIntAndPositive(retryOccurrences, 3);
         this.trendReportWaitTime = LreTestRunHelper.verifyStringValueIsIntAndPositive(trendReportWaitTime, 0);
-        this.authenticateWithToken = authenticateWithToken;
         this.searchTimeslot = searchTimeslot;
         this.statusBySla = statusBySla;
         this.enableStacktrace = enableStacktrace;
-        this.workspace = workspace;
-    }
-
-    private String getCorrectLreServerAndPort(String lreServerAndPort) {
-        if(lreServerAndPort.contains("?") && !lreServerAndPort.contains("/?")) {
-            return lreServerAndPort.replace("?", "/?");
-        }
-        return lreServerAndPort;
+        this.output = output;
     }
     // </editor-fold>
 
@@ -119,17 +95,10 @@ public class LreTestRunModel {
     }
     public String getRetryOccurrences() { return this.retryOccurrences; }
     public String getTrendReportWaitTime() { return this.trendReportWaitTime; }
-    public String getLreServerAndPort() { return this.lreServerAndPort; }
-    public String getUsername() { return this.username; }
-    public String getPassword() { return this.password; }
-    public String getUsernameProxy() { return this.usernameProxy; }
-    public String getPasswordProxy() { return this.passwordProxy; }
     public String getTestToRun() {
         return this.testToRun;
     }
     public String getTestContentToCreate() { return this.testContentToCreate; }
-    public String getDomain() { return this.domain; }
-    public String getProject() { return this.project; }
     public String getTestId() { return this.testId; }
     public void setTestId(String testId) { this.testId = testId; }
     public String getTestInstanceId() { return this.testInstanceId; }
@@ -140,11 +109,7 @@ public class LreTestRunModel {
     public String getTimeslotDurationMinutes() { return this.timeslotDurationMinutes; }
     public boolean isVudsMode() { return this.vudsMode; }
     public PostRunAction getPostRunAction() { return this.postRunAction; }
-    public String getDescription() { return this.description; }
-    public boolean isHttpsProtocol() { return this.httpsProtocol; }
-    public String getProxyOutURL() {
-        return this.proxyOutURL;
-    }
+    public String getDescription() { return super.getDescription(); }
     public String getBuildParameters() { return this.buildParameters; }
     public void setBuildParameters(String buildParameters) { this.buildParameters = buildParameters; }
     public String getTrendReportId() {
@@ -156,10 +121,6 @@ public class LreTestRunModel {
     public String getAddRunToTrendReport() {
         return this.addRunToTrendReport;
     }
-    public String getProtocol() { return httpsProtocol ? "https" : "http"; }
-    public boolean isAuthenticateWithToken() {
-        return this.authenticateWithToken;
-    }
     public boolean isSearchTimeslot() {
         return this.searchTimeslot;
     }
@@ -170,8 +131,10 @@ public class LreTestRunModel {
     public void setEnableStacktrace(boolean enableStacktrace) { this.enableStacktrace = enableStacktrace; }
     public boolean isEnableStacktrace() {return this.enableStacktrace; }
 
-    public void setWorkspace(String workspace) { this.workspace = workspace; }
-    public String getWorkspace() { return this.workspace; }
+    public void setOutput(String output) { this.output = output; }
+    public String getOutput() { return this.output; }
+
+    // workspace is now inherited from LreBaseModel - use getWorkspace() from base class
 
 
     @Override
@@ -182,9 +145,9 @@ public class LreTestRunModel {
         return String.format("[lreServerAndPort='%s', username='%s', domain='%s', project='%s', TestID='%s', " +
                         "TestInstanceID='%s', TimeslotDurationHours='%s', TimeslotDurationMinutes='%s', PostRunAction='%s', " +
                         "VUDsMode='%s', trending='%s', HTTPSProtocol='%s', authenticateWithToken='%s']",
-                lreServerAndPort, username, domain, project, testId,
+                getLreServerAndPort(), getUsername(), getDomain(), getProject(), testId,
                 testInstanceId, timeslotDurationHours, timeslotDurationMinutes, postRunAction.getValue(),
-                vudsModeString, trendString, httpsProtocol, authenticateWithToken);
+                vudsModeString, trendString, isHttpsProtocol(), isAuthenticateWithToken());
     }
     // </editor-fold>
 }

@@ -2,111 +2,124 @@ package com.opentext.lre.actions.common.helpers.utils;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.core.config.Configuration;
-import org.apache.logging.log4j.core.config.LoggerConfig;
-import org.apache.logging.log4j.core.appender.FileAppender;
-import org.apache.logging.log4j.core.layout.PatternLayout;
+
+import java.io.File;
 
 public class LogHelper {
 
-    // Static logger instance
-    private static final Logger logger = LogManager.getLogger(LogHelper.class);
+    public static Logger logger;
     private static boolean stackTraceEnabled = false;
 
-    // Static initializer block to configure logging
-    static {
-        // Suppress warnings from ResponseProcessCookies
-        Logger apacheHttpLogger = LogManager.getLogger("org.apache.http.client.protocol.ResponseProcessCookies");
-        if (apacheHttpLogger instanceof org.apache.logging.log4j.core.Logger) {
-            ((org.apache.logging.log4j.core.Logger) apacheHttpLogger).setLevel(org.apache.logging.log4j.Level.ERROR);
+    private LogHelper() {
+        // Utility class
+    }
+
+    private static void fallbackError(String message) {
+        System.err.println(message);
+    }
+
+    private static void fallbackError(String message, Throwable throwable) {
+        fallbackError(message);
+        if (throwable != null) {
+            throwable.printStackTrace(System.err);
         }
     }
 
-    // Method to setup log file path
-    public static void setup(String logFilePath, boolean enableStackTrace) {
-        org.apache.logging.log4j.jul.LogManager.getLogManager().reset();
-        java.util.logging.Logger httpClientLogger = java.util.logging.Logger.getLogger("org.apache.http.client.protocol.ResponseProcessCookies");
-        httpClientLogger.setLevel(java.util.logging.Level.SEVERE);
-
-        LoggerContext context = (LoggerContext) LogManager.getContext(false);
-        Configuration config = context.getConfiguration();
-
-        // Create a new file appender with the specified log file path
-        PatternLayout layout = PatternLayout.newBuilder()
-                .withPattern("%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n")
-                .build();
-        FileAppender appender = FileAppender.newBuilder()
-                .withFileName(logFilePath)
-                .withName("File")
-                .withLayout(layout)
-                .build();
-        appender.start();
-
-        // Add the appender to the configuration
-        config.addAppender(appender);
-
-        // Get the root logger and add the appender
-        LoggerConfig rootLoggerConfig = config.getRootLogger();
-        rootLoggerConfig.addAppender(appender, null, null);
-
-        // Update the context with the new configuration
-        context.updateLoggers(config);
-
-        logger.info("Log file path set to: " + logFilePath);
+    public static synchronized void setup(String logFilePath, boolean enableStackTrace) throws Exception {
         stackTraceEnabled = enableStackTrace;
+
+        // Ensure directory exists
+        File file = new File(logFilePath);
+        File parent = file.getParentFile();
+        if (!parent.exists() && !parent.mkdirs()) {
+            throw new Exception("Failed to create log directory: " + parent.getAbsolutePath());
+        }
+
+        // The log.file system property is already set in Main.java before calling this method
+        // log4j2.xml uses ${sys:log.file} to configure the file appender
+        // Simply get the logger - log4j2 will initialize with the system property
+        logger = LogManager.getLogger(LogHelper.class);
+
+        logger.info("Log file path set to: {}", logFilePath);
     }
 
-    // Method to log info messages
-    public static void info(String message) {
-        logger.info(message);
-    }
-
-    // Method to log error messages with exception
-    public static void error(String message, Throwable throwable) {
-        if(stackTraceEnabled) {
-            logger.error(message, throwable);
+    public static void log(String message, boolean addDate, Object... args) {
+        String formatted = String.format(message, args);
+        if (addDate) {
+            // Timestamps are already controlled by the logging backend pattern.
+        }
+        if (logger != null) {
+            logger.info(formatted);
         } else {
-            if(throwable != null && !throwable.getMessage().trim().isEmpty()) {
-                logger.error(message, throwable.getMessage());
+            System.out.println(formatted);
+        }
+    }
+
+    public static void error(String message) {
+        if (logger != null) {
+            logger.error(message);
+        } else {
+            fallbackError(message);
+        }
+    }
+
+    public static void error(String message, Throwable throwable) {
+        if (logger == null) {
+            if (stackTraceEnabled && throwable != null) {
+                fallbackError(message, throwable);
+            } else if (throwable != null && throwable.getMessage() != null) {
+                fallbackError(message + " - " + throwable.getMessage());
+            } else {
+                fallbackError(message);
             }
+            return;
+        }
+
+        if (stackTraceEnabled && throwable != null) {
+            logger.error(message, throwable);
+        } else if (throwable != null && throwable.getMessage() != null) {
+            logger.error("{} - {}", message, throwable.getMessage());
+        } else {
             logger.error(message);
         }
     }
 
-    // Method to log error messages
-    public static void error(String message) {
-        logger.error(message);
-    }
-
-    // Add more methods as needed for different log levels
-    public static void debug(String message) {
-        logger.debug(message);
-    }
-
-    public static void warn(String message) {
-        logger.warn(message);
-    }
-
-    public static void log(String format, boolean addDate, Object... args) {
-        if (logger == null)
-            return;
-        logger.info(String.format(format, args));
-    }
-
-    // Method to log messages with an optional throwable
     public static void logStackTrace(Throwable throwable) {
-        if(stackTraceEnabled || (throwable != null && throwable.getMessage().trim().isEmpty())) {
+        if (logger == null) {
+            if (stackTraceEnabled || (throwable != null && throwable.getMessage() == null)) {
+                fallbackError("Error - Stack Trace:", throwable);
+            } else if (throwable != null) {
+                fallbackError(throwable.getMessage());
+            }
+            return;
+        }
+
+        if (stackTraceEnabled || (throwable != null && throwable.getMessage() == null)) {
             logger.error("Error - Stack Trace: ", throwable);
-        } else if(throwable != null) {
+        } else if (throwable != null) {
             logger.error(throwable.getMessage());
         }
     }
     public static void logStackTrace(String errorMessage, Throwable throwable) {
-        if(stackTraceEnabled || (throwable != null && throwable.getMessage().trim().isEmpty())) {
-            logger.error("Error: " + errorMessage + " Stack Trace: ", throwable);
+        boolean missingThrowableMessage = throwable != null && (throwable.getMessage() == null || throwable.getMessage().trim().isEmpty());
+
+        if (logger == null) {
+            if(stackTraceEnabled || missingThrowableMessage) {
+                fallbackError("Error: " + errorMessage + " Stack Trace:", throwable);
+            } else if(throwable != null) {
+                fallbackError(errorMessage + " - " + throwable.getMessage());
+            } else {
+                fallbackError(errorMessage);
+            }
+            return;
+        }
+
+        if(stackTraceEnabled || missingThrowableMessage) {
+            logger.error("Error: {} Stack Trace: ", errorMessage, throwable);
         } else if(throwable != null) {
-            logger.error(errorMessage + " - " + throwable.getMessage());
+            logger.error("{} - {}", errorMessage, throwable.getMessage());
+        } else {
+            logger.error(errorMessage);
         }
     }
 }

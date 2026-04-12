@@ -35,10 +35,10 @@ public class LreTestRunClient {
     private int timeslotId = -1;
 
     public LreTestRunClient(LreTestRunModel lreTestRunModel,
-                           String testToCreate,
-                           String testName,
-                           String testFolderPath,
-                           String fileExtension) {
+                            String testToCreate,
+                            String testName,
+                            String testFolderPath,
+                            String fileExtension) {
         try {
             this.lreTestRunModel = lreTestRunModel;
             this.testToCreate = testToCreate;
@@ -58,8 +58,8 @@ public class LreTestRunClient {
     }
 
     public <T extends PcRestProxy> LreTestRunClient(LreTestRunModel lreTestRunModel, /*PrintStream logger,*/ T proxy) {
-        lreTestRunModel = lreTestRunModel;
-        restProxy = proxy;
+        this.lreTestRunModel = lreTestRunModel;
+        this.restProxy = proxy;
     }
 
     public boolean login() {
@@ -112,7 +112,7 @@ public class LreTestRunClient {
                     timeslotId);
             LogHelper.log("%s (TestID: %s, RunID: %s, TimeslotID: %s)", true,
                     LocalizationManager.getString("RunStarted"),
-                    response.getTestID(), response.getID(), response.getTimeslotID());
+                    (Object) response.getTestID(), (Object) response.getID(), (Object) response.getTimeslotID());
 
             return response.getID();
         } catch (NumberFormatException | PcException | IOException ex ) {
@@ -138,11 +138,11 @@ public class LreTestRunClient {
                         LogHelper.log("%s. %s (%s %s). %s: %s.", true,
                                 LocalizationManager.getString("StartRunRetryFailed"),
                                 LocalizationManager.getString("AttemptingStartAgainSoon"),
-                                retryDelay,
+                                (Object) retryDelay,
                                 LocalizationManager.getString("Minutes"),
                                 LocalizationManager.getString("AttemptsRemaining"),
-                                retryOccurrences - retryCount + 1);
-                        Thread.sleep(retryDelay * 60 * 1000);
+                                (Object) (retryOccurrences - retryCount + 1));
+                        Thread.sleep((long) retryDelay * 60 * 1000);
                     }
                 } catch (InterruptedException ex) {
                     LogHelper.log("wait interrupted", true);
@@ -155,9 +155,9 @@ public class LreTestRunClient {
                 if (ret != 0) {
                     LogHelper.log("%s (TestID: %s, RunID: %s, TimeslotID: %s))", true,
                             LocalizationManager.getString("RunStarted"),
-                            response.getTestID(),
-                            response.getID(),
-                            response.getTimeslotID());
+                            (Object) response.getTestID(),
+                            (Object) response.getID(),
+                            (Object) response.getTimeslotID());
                 }
                 return ret;
             }
@@ -199,13 +199,13 @@ public class LreTestRunClient {
                 LocalizationManager.getString("ExecutingLoadTest"),
                 LocalizationManager.getString("Domain"), lreTestRunModel.getDomain(),
                 LocalizationManager.getString("Project"), lreTestRunModel.getProject(),
-                LocalizationManager.getString("TestID"),Integer.parseInt(lreTestRunModel.getTestId()),
-                LocalizationManager.getString("TestInstanceID"), testInstanceID,
-                "Timeslot ID", (timeslotId > 0 ? timeslotId : "Will be created"),
+                LocalizationManager.getString("TestID"),(Object) Integer.parseInt(lreTestRunModel.getTestId()),
+                LocalizationManager.getString("TestInstanceID"), (Object) testInstanceID,
+                "Timeslot ID", (timeslotId > 0 ? (Object) timeslotId : "Will be created"),
                 LocalizationManager.getString("TimeslotDuration"),
                 new TimeslotDuration(lreTestRunModel.getTimeslotDurationHours(), lreTestRunModel.getTimeslotDurationMinutes()),
                 LocalizationManager.getString("PostRunAction"), lreTestRunModel.getPostRunAction().getValue(),
-                LocalizationManager.getString("UseVUDS"), lreTestRunModel.isVudsMode());
+                LocalizationManager.getString("UseVUDS"), (Object) lreTestRunModel.isVudsMode());
     }
 
     private Test createTestFromYamlOrXml() throws IOException, PcException {
@@ -250,7 +250,7 @@ public class LreTestRunClient {
                 LogHelper.log(
                         "Timeslots related to test ID %s are: timeslot Ids '%s', timeslot names '%s', timeslot TestInstance IDs '%s'.",
                         true,
-                        testID,
+                        (Object) testID,
                         timeslotIds,
                         timeslotNames,
                         timeslotTestInstanceIDs);
@@ -261,7 +261,7 @@ public class LreTestRunClient {
                 LogHelper.log(
                         "%s matching timeslot(s) found.",
                         true,
-                        timeslotsListCount);
+                        (Object) timeslotsListCount);
 
                 if (timeslotsListCount > 0) {
                     Timeslot timeslot = timeslotsList.stream().findFirst().get();
@@ -269,14 +269,14 @@ public class LreTestRunClient {
                     LogHelper.log(
                             "Found timeslot ID: %s",
                             true,
-                            timeslotId);
+                            (Object) timeslotId);
                     if (timeslot.getLoadTestInstanceID() > 0) {
                         testInstanceID = timeslot.getLoadTestInstanceID();
                         LogHelper.log(
                                 "Using timeslot %s defined to run TestInstance Id %s.",
                                 true,
-                                timeslotId,
-                                testInstanceID);
+                                (Object) timeslotId,
+                                (Object) testInstanceID);
                     }
                 }
             } catch (Exception e) {
@@ -325,7 +325,7 @@ public class LreTestRunClient {
                     LogHelper.log(
                             "%s: %s", true,
                             LocalizationManager.getString("FoundTestInstanceID"),
-                            testInstanceID);
+                            (Object) testInstanceID);
                 } else {
                     LogHelper.log(LocalizationManager.getString("NotFoundTestInstanceID"), true);
                     LogHelper.log(LocalizationManager.getString("SearchingAvailableTestSet"), true);
@@ -337,13 +337,13 @@ public class LreTestRunClient {
                         LogHelper.log(
                                 "%s (Test ID: %s, TestSet ID: %s", true,
                                 LocalizationManager.getString("CreatingNewTestInstance"),
-                                testID,
-                                testSetID);
+                                (Object) testID,
+                                (Object) testSetID);
                         testInstanceID = restProxy.createTestInstance(testID, testSetID);
                         LogHelper.log(
                                 "%s: %s", true,
                                 LocalizationManager.getString("TestInstanceCreatedSuccessfully"),
-                                testInstanceID);
+                                (Object) testInstanceID);
                     } else {
 
                         String msg = LocalizationManager.getString("NoTestSetAvailable");
@@ -447,12 +447,12 @@ public class LreTestRunClient {
 
                 if (threeStrikes < 3) {
                     LogHelper.log("Cannot get response from PC about the state of RunID: %s %s time(s) consecutively", true,
-                            runId,
-                            (3 - threeStrikes));
+                            (Object) runId,
+                            (Object) (3 - threeStrikes));
                     if (threeStrikes == 0) {
                         LogHelper.log("%s: %s", true,
                                 LocalizationManager.getString("StoppingMonitoringOnRun"),
-                                runId);
+                                (Object) runId);
                         break;
                     }
                     Thread.sleep(2000);
@@ -463,7 +463,7 @@ public class LreTestRunClient {
                 if (lastState.ordinal() < currentState.ordinal()) {
                     lastState = currentState;
                     LogHelper.log("RunID: %s - State = %s", true,
-                            runId,
+                            (Object) runId,
                             currentState.value());
                 }
 
@@ -474,7 +474,7 @@ public class LreTestRunClient {
                     Thread.sleep(1000);
                     if (counter > 60) {
                         LogHelper.log("Run ID: %s  - %s = %s", true,
-                                runId,
+                                (Object) runId,
                                 LocalizationManager.getString("StoppedFromLre"),
                                 currentState.value());
                         break;
@@ -488,7 +488,7 @@ public class LreTestRunClient {
                 threeStrikes--;
             } catch (InterruptedException e) {
                 LogHelper.log("Job execution interrupted: %s", true,
-                        runId,
+                        (Object) runId,
                         e.getMessage());
                 throw e;
             }
@@ -612,13 +612,13 @@ public class LreTestRunClient {
 
         TrendReportRequest trRequest = new TrendReportRequest(lreTestRunModel.getProject(), runId, null);
         LogHelper.log("Adding run: %s to trend report: %s", true,
-                runId,
+                (Object) runId,
                 trendReportId);
         try {
             restProxy.updateTrendReport(trendReportId, trRequest);
             LogHelper.log("%s: %s %s: %s", true,
                     LocalizationManager.getString("PublishingRun"),
-                    runId,
+                    (Object) runId,
                     LocalizationManager.getString("OnTrendReport"),
                     trendReportId);
         } catch (PcException e) {
@@ -654,7 +654,7 @@ public class LreTestRunClient {
                 if (result.getState().equals(LreTestRunBuilder.TRENDED) || result.getState().equals(LreTestRunBuilder.ERROR)) {
                     publishEnded = true;
                     LogHelper.log("Run: %s %s: %s", true,
-                            runId,
+                            (Object) runId,
                             LocalizationManager.getString("PublishingStatus"),
                             result.getState());
                     break;

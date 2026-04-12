@@ -1,5 +1,6 @@
 package com.opentext.lre.actions.common.helpers.constants;
 
+import com.opentext.lre.actions.common.helpers.utils.LogHelper;
 import org.apache.commons.io.FilenameUtils;
 
 import java.io.File;
@@ -14,6 +15,8 @@ import java.util.zip.ZipInputStream;
 import java.nio.file.Files;
 
 public class LreTestRunHelper {
+    // Static field to control stack trace output - set based on lre_enable_stacktrace configuration
+    public static boolean ENABLE_STACKTRACE = false;
 
     public LreTestRunHelper() {
     }
@@ -26,79 +29,72 @@ public class LreTestRunHelper {
         }
         return Integer.toString(defaultValue);
     }
+
     public static boolean isInteger(String s) {
-        return isInteger(s, 10);
-    }
-    private static boolean isInteger(String s, int radix) {
-        if (s.isEmpty()) return false;
+        if (s == null || s.isEmpty()) return false;
         for (int i = 0; i < s.length(); i++) {
             if (i == 0 && s.charAt(i) == '-') {
                 if (s.length() == 1) return false;
                 else continue;
             }
-            if (Character.digit(s.charAt(i), radix) < 0) return false;
+            if (Character.digit(s.charAt(i), 10) < 0) return false;
         }
         return true;
     }
 
-    public static String useParameterIfNeeded(String buildParameters, String attribute) {
-        if (buildParameters != null && attribute != null && attribute.startsWith("$")) {
-            String attributeParameter = attribute.replace("$", "").replace("{", "").replace("}", "");
-            String[] buildParametersArray = buildParameters.replace("{", "").replace("}", "").split(",");
-            for (String buildParameter : buildParametersArray) {
-                if (buildParameter.trim().startsWith(attributeParameter + "=")) {
-                    return buildParameter.trim().replace(attributeParameter + "=", "");
-                }
-            }
-        }
-        return attribute;
-    }
 
     public static void getZipFiles(String filename, String destinationname) {
-        try {
-            byte[] buf = new byte[1024];
-            ZipInputStream zipinputstream = null;
-            ZipEntry zipentry;
-            zipinputstream = new ZipInputStream(
-                    new FileInputStream(filename));
+        try (ZipInputStream zipinputstream =
+                     new ZipInputStream(new FileInputStream(filename))) {
+            Path destinationPath = Paths.get(destinationname).toAbsolutePath().normalize();
+            Files.createDirectories(destinationPath);
 
-            zipentry = zipinputstream.getNextEntry();
-            while (zipentry != null) {
-                //for each entry to be extracted
-                String entryName = destinationname + File.separatorChar + zipentry.getName();
-                entryName = entryName.replace('/', File.separatorChar);
-                entryName = entryName.replace('\\', File.separatorChar);
-                //System.out.println("entryname " + entryName);
-                int n;
-                FileOutputStream fileoutputstream;
-                File newFile = new File(entryName);
+            byte[] buf = new byte[1024];
+            ZipEntry zipentry;
+
+            while ((zipentry = zipinputstream.getNextEntry()) != null) {
+                Path resolvedPath = destinationPath.resolve(
+                                zipentry.getName()
+                                        .replace('/', File.separatorChar)
+                                        .replace('\\', File.separatorChar))
+                        .normalize();
+
+                if (!resolvedPath.startsWith(destinationPath)) {
+                    throw new IOException("Blocked unsafe ZIP entry: " + zipentry.getName());
+                }
+
+                File newFile = resolvedPath.toFile();
+
                 if (zipentry.isDirectory()) {
-                    if (!newFile.mkdirs()) {
-                        break;
-                    }
-                    zipentry = zipinputstream.getNextEntry();
+                    Files.createDirectories(resolvedPath);
+                    zipinputstream.closeEntry();
                     continue;
                 }
 
-                fileoutputstream = new FileOutputStream(entryName);
-
-                while ((n = zipinputstream.read(buf, 0, 1024)) > -1) {
-                    fileoutputstream.write(buf, 0, n);
+                // 🔑 Ensure parent directories exist
+                Path parentDir = resolvedPath.getParent();
+                if (parentDir != null) {
+                    Files.createDirectories(parentDir);
                 }
 
-                fileoutputstream.close();
+                try (FileOutputStream fileoutputstream = new FileOutputStream(newFile)) {
+                    int n;
+                    while ((n = zipinputstream.read(buf)) > 0) {
+                        fileoutputstream.write(buf, 0, n);
+                    }
+                }
+
                 zipinputstream.closeEntry();
-                zipentry = zipinputstream.getNextEntry();
+            }
 
-            }//while
-
-            zipinputstream.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            // Log error. Print stack trace only if lre_enable_stacktrace is true
+            LogHelper.log("Failed to extract archive: %s", true, e.getMessage());
+            LogHelper.logStackTrace(e);
         }
     }
 
-    public static boolean verifyStringIsPath(Path workspace, String strPossiblePath) throws InterruptedException, IOException {
+    public static boolean verifyStringIsPath(Path workspace, String strPossiblePath) {
         File file = new File(workspace.toString(), strPossiblePath);
         return file.exists();
     }
@@ -108,21 +104,19 @@ public class LreTestRunHelper {
         return ".".concat(FilenameUtils.getExtension(filePath.getName()).toLowerCase());
     }
 
-    public static String fileNameWithoutExtension(Path workspace, String strPossiblePath)
-            throws InterruptedException, IOException {
+    public static String fileNameWithoutExtension(Path workspace, String strPossiblePath) {
         File file = new File(workspace.toString(), strPossiblePath);
         return FilenameUtils.removeExtension(file.getName());
     }
 
-    public static String filePath(String strPossiblePath)
-            throws InterruptedException, IOException {
+    public static String filePath(String strPossiblePath) {
         File file = new File(strPossiblePath);
         File fileParent = file.getParentFile();
-        return (fileParent.getPath() == null || fileParent.getPath().isEmpty()) ? "default_folder" : fileParent.getPath();
+        return (fileParent == null || fileParent.getPath().isEmpty()) ? "default_folder" : fileParent.getPath();
     }
 
     public static String fileContenToString(Path workspace, String filePath)
-            throws InterruptedException, IOException {
+            throws IOException {
         File file = new File(workspace.toString(), filePath);
         Path fileName = Paths.get(file.getAbsolutePath());
         return readFile(fileName.toAbsolutePath().toString(), Charset.defaultCharset());

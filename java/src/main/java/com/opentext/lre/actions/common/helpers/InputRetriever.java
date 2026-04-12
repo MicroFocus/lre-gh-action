@@ -1,59 +1,98 @@
 package com.opentext.lre.actions.common.helpers;
 
 import com.microfocus.adm.performancecenter.plugins.common.pcentities.PostRunAction;
-import com.opentext.lre.actions.common.helpers.utils.LogHelper;
 import com.opentext.lre.actions.runtest.LreTestRunModel;
+import com.opentext.lre.actions.workspacesync.LreWorkspaceSyncModel;
 import org.json.JSONObject;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
 public class InputRetriever {
-    private final String configContent;
+    private static final String DEFAULT_LRE_ACTION = "ExecuteLreTest";
     private final JSONObject config;
     private final boolean useConfiguration;
+
     public InputRetriever(String[] args) throws IOException {
         useConfiguration = args.length > 0;
         if(useConfiguration) {
             // Read the configuration file
-            configContent = new String(Files.readAllBytes(Paths.get(args[0])));
+            String configContent = new String(Files.readAllBytes(Paths.get(args[0])));
             config = new JSONObject(configContent);
         } else {
-            configContent = null;
             config = null;
         }
     }
 
-    public LreTestRunModel getLreTestRunModel() throws Exception {
-        String lre_action = GetParameterStrValue("lre_action", false, "ExecuteLreTest");
-        if("ExecuteLreTest".equalsIgnoreCase(lre_action)) {
-            String lre_description = GetParameterStrValue("lre_description", false, "");
-            String lre_server = GetParameterStrValue("lre_server", true, "");
-            boolean lre_https_protocol = GetParameterBoolValue("lre_https_protocol", false, false);
-            boolean lre_authenticate_with_token = GetParameterBoolValue("lre_authenticate_with_token", false, false);
-            String lre_username = GetParameterStrValueFromEnvironment("lre_username", true, "");
-            String lre_password = GetParameterStrValueFromEnvironment("lre_password", true, "");
-            String lre_domain = GetParameterStrValue("lre_domain", true, "");
-            String lre_project = GetParameterStrValue("lre_project", true, "");
-            String lre_test = GetParameterStrValue("lre_test", true, "");
-            String lre_test_instance = GetParameterStrValue("lre_test_instance", false, "AUTO");
-            String lre_timeslot_duration_hours = GetParameterStrValue("lre_timeslot_duration_hours", false, "0");
-            String lre_timeslot_duration_minutes = GetParameterStrValue("lre_timeslot_duration_minutes", false, "30");
-            PostRunAction lre_post_run_action = getPostRunAction("lre_post_run_action");
-            boolean lre_vuds_mode = GetParameterBoolValue("lre_vuds_mode", false, false);
-            String lre_trend_report = GetParameterStrValue("lre_trend_report", false, "");
-            String lre_proxy_out_url = GetParameterStrValue("lre_proxy_out_url", false, "");
-            String lre_username_proxy = GetParameterStrValueFromEnvironment("lre_username_proxy", false, "");
-            String lre_password_proxy = GetParameterStrValueFromEnvironment("lre_password_proxy", false, "");
-            boolean lre_search_timeslot = GetParameterBoolValue("lre_search_timeslot", false, false);
-            boolean lre_status_by_sla = GetParameterBoolValue("lre_status_by_sla", false, false);
-            String lre_output_dir = GetParameterStrValue("lre_output_dir", false, "./");
+    /**
+     * Inner class to hold common LRE parameters shared by all models
+     */
+    private static class CommonLreParameters {
+        String lreServer;
+        boolean lreHttpsProtocol;
+        boolean lreAuthenticateWithToken;
+        boolean lreEnableStacktrace;
+        String lreUsername;
+        String lrePassword;
+        String lreDomain;
+        String lreProject;
+        String lreProxyOutUrl;
+        String lreUsernameProxy;
+        String lrePasswordProxy;
+        String lreWorkspaceDir;
+        String lreDescription;
+    }
 
-            String lre_retry = GetParameterStrValue("lre_retry", false, "1");
-            String lre_retry_delay = GetParameterStrValue("lre_retry_delay", false, "1");
-            String lre_retry_occurrences = GetParameterStrValue("lre_retry_occurrences", false, "1");
-            String lre_trend_report_wait_time = GetParameterStrValue("lre_trend_report_wait_time", false, "0");
-            boolean lre_enable_stacktrace = GetParameterBoolValue("lre_enable_stacktrace", false, false);
+    /**
+     * Retrieves common LRE parameters shared by all models
+     */
+    private CommonLreParameters getCommonLreParameters() throws Exception {
+        CommonLreParameters params = new CommonLreParameters();
+        params.lreServer = getParameterStrValue("lre_server", true, "");
+        params.lreHttpsProtocol = getParameterBoolValue("lre_https_protocol", true);
+        params.lreAuthenticateWithToken = getParameterBoolValue("lre_authenticate_with_token", false);
+        params.lreEnableStacktrace = getParameterBoolValue("lre_enable_stacktrace", false);
+        params.lreUsername = getParameterStrValueFromEnvironment("lre_username", true, "");
+        params.lrePassword = getParameterStrValueFromEnvironment("lre_password", true, "");
+        params.lreDomain = getParameterStrValue("lre_domain", true, "");
+        params.lreProject = getParameterStrValue("lre_project", true, "");
+        params.lreProxyOutUrl = getParameterStrValue("lre_proxy_out_url", false, "");
+        params.lreUsernameProxy = getParameterStrValueFromEnvironment("lre_username_proxy", false, "");
+        params.lrePasswordProxy = getParameterStrValueFromEnvironment("lre_password_proxy", false, "");
+        params.lreWorkspaceDir = getParameterStrValueFromConfigOrFromEnvironment("lre_workspace_dir", true);
+        params.lreDescription = getParameterStrValue("lre_description", false, "");
+        return params;
+    }
+
+    /**
+     * Gets the action to execute from configuration or environment
+     * @return the action name (e.g., "ExecuteLreTest", "WorkspaceSync")
+     */
+    public String getLreAction() throws Exception {
+        return getParameterStrValue("lre_action", false, DEFAULT_LRE_ACTION);
+    }
+
+    public LreTestRunModel getLreTestRunModel() throws Exception {
+        String lre_action = getLreAction();
+        if("ExecuteLreTest".equalsIgnoreCase(lre_action)) {
+            // Get common parameters
+            CommonLreParameters common = getCommonLreParameters();
+
+            // Get test-specific parameters
+            String lre_test = getParameterStrValue("lre_test", true, "");
+            String lre_test_instance = getParameterStrValue("lre_test_instance", false, "AUTO");
+            String lre_timeslot_duration_hours = getParameterStrValue("lre_timeslot_duration_hours", false, "0");
+            String lre_timeslot_duration_minutes = getParameterStrValue("lre_timeslot_duration_minutes", false, "30");
+            PostRunAction lre_post_run_action = getPostRunAction();
+            boolean lre_vuds_mode = getParameterBoolValue("lre_vuds_mode", false);
+            String lre_trend_report = getParameterStrValue("lre_trend_report", false, "");
+            boolean lre_search_timeslot = getParameterBoolValue("lre_search_timeslot", false);
+            boolean lre_status_by_sla = getParameterBoolValue("lre_status_by_sla", false);
+            String lre_output_dir = getParameterStrValueFromConfigOrFromEnvironment("lre_output_dir", false) ;
+            String lre_retry = getParameterStrValue("lre_retry", false, "1");
+            String lre_retry_delay = getParameterStrValue("lre_retry_delay", false, "1");
+            String lre_retry_occurrences = getParameterStrValue("lre_retry_occurrences", false, "1");
+            String lre_trend_report_wait_time = getParameterStrValue("lre_trend_report_wait_time", false, "0");
 
             String lre_test_to_run = getTestToRun(lre_test);
             String lre_test_content_to_create = lre_test_to_run.equals("CREATE_TEST") ? lre_test : "";
@@ -66,16 +105,12 @@ public class InputRetriever {
                     tryParseIntStrictlyPositive(lre_trend_report) ? "USE_ID" : "";
             String lre_trend_report_id = lre_add_run_to_trend_report.equals("USE_ID") ? lre_trend_report : "";
 
-            if(lre_enable_stacktrace) {
-                LogHelper.log("configContent: " + configContent, true);
-            }
-
             return new LreTestRunModel(
-                    lre_server,
-                    lre_username,
-                    lre_password,
-                    lre_domain,
-                    lre_project,
+                    common.lreServer,
+                    common.lreUsername,
+                    common.lrePassword,
+                    common.lreDomain,
+                    common.lreProject,
                     lre_test_to_run,
                     lre_test_id,
                     lre_test_content_to_create,
@@ -85,46 +120,99 @@ public class InputRetriever {
                     lre_timeslot_duration_minutes,
                     lre_post_run_action,
                     lre_vuds_mode,
-                    lre_description,
+                    common.lreDescription,
                     lre_add_run_to_trend_report,
                     lre_trend_report_id,
-                    lre_https_protocol,
-                    lre_proxy_out_url,
-                    lre_username_proxy,
-                    lre_password_proxy,
+                    common.lreHttpsProtocol,
+                    common.lreProxyOutUrl,
+                    common.lreUsernameProxy,
+                    common.lrePasswordProxy,
                     lre_retry,
                     lre_retry_delay,
                     lre_retry_occurrences,
                     lre_trend_report_wait_time,
-                    lre_authenticate_with_token,
+                    common.lreAuthenticateWithToken,
                     lre_search_timeslot,
                     lre_status_by_sla,
-                    lre_enable_stacktrace,
-                    lre_output_dir);
+                    common.lreEnableStacktrace,
+                    lre_output_dir,
+                    common.lreWorkspaceDir);
         } else {
-            LogHelper.log("configContent: " + configContent, true);
             return null;
         }
     }
 
-    private String GetParameterStrValue(String parameterKey,
-                                        boolean isRequired,
-                                        String defaultValue) throws Exception {
-        if(useConfiguration) {
-            return GetParameterStrValueFromConfig(parameterKey, isRequired, defaultValue);
+    /**
+     * Gets the LreWorkspaceSyncModel from configuration or environment variables
+     * @return LreWorkspaceSyncModel if lre_action is "WorkspaceSync", null otherwise
+     */
+    public LreWorkspaceSyncModel getLreWorkspaceSyncModel() throws Exception {
+        String lre_action = getLreAction();
+        if("WorkspaceSync".equalsIgnoreCase(lre_action)) {
+            // Get common parameters
+            CommonLreParameters common = getCommonLreParameters();
+
+            // Get workspace sync-specific parameters
+            boolean lre_runtime_only = getParameterBoolValue("lre_runtime_only", true);
+
+            return new LreWorkspaceSyncModel(
+                    common.lreServer,
+                    common.lreHttpsProtocol,
+                    common.lreUsername,
+                    common.lrePassword,
+                    common.lreDomain,
+                    common.lreProject,
+                    common.lreProxyOutUrl,
+                    common.lreUsernameProxy,
+                    common.lrePasswordProxy,
+                    common.lreWorkspaceDir,
+                    lre_runtime_only,
+                    common.lreAuthenticateWithToken,
+                    common.lreEnableStacktrace,
+                    common.lreDescription);
         } else {
-            return GetParameterStrValueFromEnvironment(parameterKey, isRequired, defaultValue);
+            return null;
         }
     }
 
-    private String GetParameterStrValueFromEnvironment(String parameterKey,
+    private String getParameterStrValueFromConfigOrFromEnvironment(String parameterKey,
+                                                                   boolean isRequired) throws Exception {
+        String parameterValue;
+        try {
+            parameterValue = getParameterStrValue(parameterKey, isRequired, "");
+        } catch (Exception ex) {
+            throw new Exception("GetParameterStrValueFromConfigOrFromEnvironment: failed to get parameter " + parameterKey, ex);
+        }
+        if (parameterValue == null || parameterValue.isEmpty()) {
+            String parameterFromEnvironmentValue;
+            try {
+                parameterFromEnvironmentValue = getParameterStrValueFromEnvironment("GITHUB_WORKSPACE", isRequired, "");
+                return parameterFromEnvironmentValue;
+            } catch (Exception ex) {
+                throw new Exception("unexpected error while getting parameter '" + parameterKey + "' or parameter from environment 'GITHUB_WORKSPACE'", ex);
+            }
+        } else {
+            return parameterValue;
+        }
+    }
+
+
+    private String getParameterStrValue(String parameterKey,
+                                        boolean isRequired,
+                                        String defaultValue) throws Exception {
+        if(useConfiguration) {
+            return getParameterStrValueFromConfig(parameterKey, isRequired, defaultValue);
+        } else {
+            return getParameterStrValueFromEnvironment(parameterKey, isRequired, defaultValue);
+        }
+    }
+
+    private String getParameterStrValueFromEnvironment(String parameterKey,
                                                   boolean isRequired,
                                                   String defaultValue) throws Exception {
-        String parameterValue = null;
+        String parameterValue;
         try {
-            if (parameterKey != null && !parameterKey.isEmpty()) {
-                parameterValue = System.getenv(parameterKey);
-            }
+            parameterValue = System.getenv(parameterKey);
             if (parameterValue == null || parameterValue.isEmpty()) {
                 if (isRequired) {
                     throw new Exception("no value to required parameter '" + parameterKey + "'");
@@ -133,52 +221,51 @@ public class InputRetriever {
             }
             return parameterValue;
         } catch (Exception ex) {
-            throw new Exception("unexpected error while getting parameter");
+            throw new Exception("unexpected error while getting parameter '" + parameterKey + "'");
         }
     }
 
-    private String GetParameterStrValueFromConfig(String parameterKey,
+    private String getParameterStrValueFromConfig(String parameterKey,
                                         boolean isRequired,
                                         String defaultValue) throws Exception {
-        String parameterValue = null;
+        String parameterValue = defaultValue;
         try {
             if(parameterKey != null && !parameterKey.isEmpty()) {
                 parameterValue = config.optString(parameterKey, defaultValue);
             }
             if(parameterValue == null ||  parameterValue.isEmpty()) {
                 if(isRequired) {
+                    parameterValue = System.getenv(parameterKey);
+                    if(parameterValue == null ||  parameterValue.isEmpty()) {
                     throw new Exception("no value to required parameter '" + parameterKey + "'");
+                    }
                 }
                 parameterValue = defaultValue;
             }
             return parameterValue;
         } catch (Exception ex) {
-            throw new Exception("unexpected error while getting parameter");
+            throw new Exception("unexpected error while getting parameter'" + parameterKey + "'");
         }
     }
 
-    private boolean GetParameterBoolValue(String parameterKey,
-                                          boolean isRequired,
+    private boolean getParameterBoolValue(String parameterKey,
                                           boolean defaultValue) throws Exception {
         if(useConfiguration) {
-            return GetParameterBoolValueFromConfig(parameterKey, isRequired, defaultValue);
+            return getParameterBoolValueFromConfig(parameterKey, defaultValue);
         } else {
-            return GetParameterBoolValueFromEnvironment(parameterKey, isRequired, defaultValue);
+            return getParameterBoolValueFromEnvironment(parameterKey, defaultValue);
         }
     }
 
-    private boolean GetParameterBoolValueFromEnvironment(String parameterKey,
-                                                    boolean isRequired,
+    private boolean getParameterBoolValueFromEnvironment(String parameterKey,
                                                     boolean defaultValue) throws Exception {
-        String parameterValue = null;
+        String parameterValue = "";
         try {
+
             if (parameterKey != null && !parameterKey.isEmpty()) {
                 parameterValue = System.getenv(parameterKey);
             }
             if (parameterValue == null || parameterValue.isEmpty()) {
-                if (isRequired) {
-                    throw new Exception("no value to required parameter '" + parameterKey + "'");
-                }
                 return defaultValue;
             }
             return Boolean.parseBoolean(parameterValue);
@@ -187,8 +274,7 @@ public class InputRetriever {
         }
     }
 
-    private boolean GetParameterBoolValueFromConfig(String parameterKey,
-                                          boolean isRequired,
+    private boolean getParameterBoolValueFromConfig(String parameterKey,
                                           boolean defaultValue) throws Exception {
         boolean parameterValue = defaultValue;
         try {
@@ -201,20 +287,19 @@ public class InputRetriever {
         }
     }
 
-    private PostRunAction getPostRunAction(String lre_post_run_action_param_name) throws Exception {
-        String lre_post_run_action_str = GetParameterStrValue(lre_post_run_action_param_name, true, "Collate and Analyze");
-        PostRunAction lre_post_run_action = (lre_post_run_action_str.equalsIgnoreCase("Collate Results") ||
+    private PostRunAction getPostRunAction() throws Exception {
+        String lre_post_run_action_str = getParameterStrValue("lre_post_run_action", true, "Collate and Analyze");
+        return (lre_post_run_action_str.equalsIgnoreCase("Collate Results") ||
                 lre_post_run_action_str.equalsIgnoreCase("CollateResults")) ? PostRunAction.COLLATE :
                 ((lre_post_run_action_str.equalsIgnoreCase("Collate and Analyze") ||
                         lre_post_run_action_str.equalsIgnoreCase("CollateandAnalyze")) ? PostRunAction.COLLATE_AND_ANALYZE :
                         PostRunAction.DO_NOTHING);
-        return lre_post_run_action;
     }
 
-    private String getTestToRun(String lre_test) throws Exception {
+    private String getTestToRun(String lre_test) {
         if(tryParseIntStrictlyPositive(lre_test)) {
             return "EXISTING_TEST";
-        } else if(lre_test != null && lre_test.toLowerCase().endsWith("yaml")) {
+        } else if(lre_test != null && (lre_test.toLowerCase().endsWith("yaml") || lre_test.toLowerCase().endsWith("yml"))) {
             return "CREATE_TEST";
         }
         return "";
@@ -227,7 +312,7 @@ public class InputRetriever {
     public static Integer ParseIntStrictlyPositive(String text) {
         if (text != null && !text.isEmpty()) {
             if (text.trim().matches("[0-9]+")) {
-                int value = Integer.valueOf(text.trim());
+                int value = Integer.parseInt(text.trim());
                 if(value > 0)
                     return value;
             }

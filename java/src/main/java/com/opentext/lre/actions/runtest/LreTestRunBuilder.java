@@ -1,15 +1,18 @@
 package com.opentext.lre.actions.runtest;
 
 import com.microfocus.adm.performancecenter.plugins.common.pcentities.*;
-import com.opentext.lre.actions.common.helpers.OutputUpdater;
 import com.opentext.lre.actions.common.helpers.LocalizationManager;
 import com.opentext.lre.actions.common.helpers.constants.LreTestRunHelper;
 import com.opentext.lre.actions.common.helpers.result.model.junit.Error;
+import com.opentext.lre.actions.common.helpers.result.model.junit.Failure;
+import com.opentext.lre.actions.common.helpers.result.model.junit.JUnitTestCaseStatus;
+import com.opentext.lre.actions.common.helpers.result.model.junit.Testcase;
+import com.opentext.lre.actions.common.helpers.result.model.junit.Testsuite;
 import com.opentext.lre.actions.common.helpers.result.model.junit.Testsuites;
 import com.opentext.lre.actions.common.helpers.utils.LogHelper;
 import com.thoughtworks.xstream.XStream;
-import org.apache.commons.httpclient.UsernamePasswordCredentials;
-import org.apache.commons.lang.StringUtils;
+import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
+import org.apache.commons.lang3.StringUtils;
 import com.opentext.lre.actions.common.helpers.result.model.junit.*;
 
 import java.beans.IntrospectionException;
@@ -66,11 +69,8 @@ public class LreTestRunBuilder {
     public static final String pcReportFileName = "Report.html";
     public static final String pcNVInsightsReportFileName = "index.html";
     public static final String TRENDED = "Trended";
-    public static final String PENDING = "Pending";
-    public static final String PUBLISHING = "Publishing";
     public static final String ERROR = "Error";
     private static final String artifactsDirectoryName = "LreResult";
-    private static final String RUNID_BUILD_VARIABLE = "lre_run_id";
     private String junitResultsFileName;
 
     //private transient static Run<?, ?> _run;
@@ -105,14 +105,10 @@ public class LreTestRunBuilder {
     private final boolean enableStackTrace;
     private int runId;
     private String testName;
-    private Path workspace;
-    private File lreReportFile;
-    private File lreNVInsgithsFile;
+    private final Path output;
+    private final Path workspace;
     private BuildStatus buildStatus;
-    private OutputUpdater outputUpdater;
-    public BuildStatus getBuildStatus() {
-        return buildStatus;
-    }
+
     public void setBuildStatus(BuildStatus buildStatus) {
         this.buildStatus = buildStatus;
     }
@@ -148,6 +144,7 @@ public class LreTestRunBuilder {
             boolean authenticateWithToken,
             boolean searchTimeslot,
             boolean enableStackTrace,
+            String output,
             String workspace) {
 
         this.lreServerAndPort = getLreServerAndPort(lreServerAndPort);
@@ -173,13 +170,13 @@ public class LreTestRunBuilder {
         this.retry = (retry == null || retry.isEmpty()) ? "NO_RETRY" : retry;
         this.retryDelay = ("NO_RETRY".equals(this.retry)) ? "0" : (retryDelay == null || retryDelay.isEmpty()) ? "5" : retryDelay;
         this.retryOccurrences = ("NO_RETRY".equals(this.retry)) ? "0" : (retryOccurrences == null || retryOccurrences.isEmpty()) ? "3" : retryOccurrences;
-        this.trendReportWaitTime = (trendReportWaitTime != null && !retryDelay.isEmpty() && LreTestRunHelper.isInteger(trendReportWaitTime)) ? trendReportWaitTime : "0";
+        this.trendReportWaitTime = (trendReportWaitTime != null && !trendReportWaitTime.isEmpty() && LreTestRunHelper.isInteger(trendReportWaitTime)) ? trendReportWaitTime : "0";
         this.authenticateWithToken = authenticateWithToken;
         this.searchTimeslot = searchTimeslot;
+        this.output = (output == null) ? null : Paths.get(output);
         this.workspace = Paths.get(workspace);
         this.buildStatus = BuildStatus.Initiated;
         this.enableStackTrace = enableStackTrace;
-        this.outputUpdater = new OutputUpdater(this.workspace);
     }
 
     private static String getLreServerAndPort(String lreServerAndPort) {
@@ -192,7 +189,7 @@ public class LreTestRunBuilder {
     public LreTestRunBuilder(LreTestRunModel lreTestRunModel)
     {
         this(lreTestRunModel.getLreServerAndPort(),
-                new UsernamePasswordCredentials(lreTestRunModel.getUsername(),lreTestRunModel.getPassword()),
+                new UsernamePasswordCredentials(lreTestRunModel.getUsername(), lreTestRunModel.getPassword().toCharArray()),
                 lreTestRunModel.getDomain(),
                 lreTestRunModel.getProject(),
                 lreTestRunModel.getTestToRun(),
@@ -210,7 +207,7 @@ public class LreTestRunBuilder {
                 lreTestRunModel.getTrendReportId(),
                 lreTestRunModel.isHttpsProtocol(),
                 lreTestRunModel.getProxyOutURL(),
-                new UsernamePasswordCredentials(lreTestRunModel.getUsernameProxy(),lreTestRunModel.getPasswordProxy()),
+                new UsernamePasswordCredentials(lreTestRunModel.getUsernameProxy(), lreTestRunModel.getPasswordProxy().toCharArray()),
                 lreTestRunModel.getRetry(),
                 lreTestRunModel.getRetryDelay(),
                 lreTestRunModel.getRetryOccurrences(),
@@ -218,12 +215,28 @@ public class LreTestRunBuilder {
                 lreTestRunModel.isAuthenticateWithToken(),
                 lreTestRunModel.isSearchTimeslot(),
                 lreTestRunModel.isEnableStacktrace(),
+                lreTestRunModel.getOutput(),
                 lreTestRunModel.getWorkspace());
         this.lreTestRunModel = lreTestRunModel;
+        // Set the static flag for stack trace output based on configuration
+        LreTestRunHelper.ENABLE_STACKTRACE = lreTestRunModel.isEnableStacktrace();
+
     }
 
 
-                             // </editor-fold>
+    // </editor-fold>
+
+    private static String passwordToString(UsernamePasswordCredentials credentials) {
+        if (credentials == null) {
+            return "";
+        }
+        char[] password = credentials.getPassword();
+        return password == null ? "" : new String(password);
+    }
+
+    private static String usernameToString(UsernamePasswordCredentials credentials) {
+        return credentials == null ? "" : credentials.getUserName();
+    }
 
     public LreTestRunModel getLreTestRunModel() {
         if (lreTestRunModel == null) {
@@ -231,7 +244,7 @@ public class LreTestRunBuilder {
                     new LreTestRunModel(
                             lreServerAndPort.trim(),
                             usernamePasswordCredentialsLre.getUserName(),
-                            usernamePasswordCredentialsLre.getPassword(),
+                            passwordToString(usernamePasswordCredentialsLre),
                             domain.trim(),
                             project.trim(),
                             testToRun,
@@ -248,8 +261,8 @@ public class LreTestRunBuilder {
                             trendReportId,
                             httpsProtocol,
                             proxyOutURL,
-                            usernamePasswordCredentialsProxy.getUserName(),
-                            usernamePasswordCredentialsProxy.getPassword(),
+                            usernameToString(usernamePasswordCredentialsProxy),
+                            passwordToString(usernamePasswordCredentialsProxy),
                             retry,
                             retryDelay,
                             retryOccurrences,
@@ -258,39 +271,87 @@ public class LreTestRunBuilder {
                             searchTimeslot,
                             statusBySLA,
                             enableStackTrace,
+                            output == null ? "" : output.toString(),
                             workspace.toString());
         }
         return lreTestRunModel;
     }
 
-    public boolean perform()
-            throws InterruptedException, IOException {
+    public boolean perform() throws InterruptedException, IOException {
         String testToCreate = "";
         String testName = "";
         String testFolderPath = "";
         String fileExtension = "";
+
         if ("CREATE_TEST".equals(getLreTestRunModel().getTestToRun())) {
             if (verifyStringIsPath(workspace, getLreTestRunModel().getTestContentToCreate())) {
                 testName = fileNameWithoutExtension(workspace, getLreTestRunModel().getTestContentToCreate());
                 testFolderPath = filePath(getLreTestRunModel().getTestContentToCreate());
                 testToCreate = fileContenToString(workspace, getLreTestRunModel().getTestContentToCreate());
                 fileExtension = retreiveFileExtension(workspace, getLreTestRunModel().getTestContentToCreate());
-            } else
+            } else {
                 testToCreate = getLreTestRunModel().getTestContentToCreate();
+            }
         }
+
         LreTestRunClient lreTestRunClient =
                 new LreTestRunClient(getLreTestRunModel(), testToCreate, testName,
                         testFolderPath, fileExtension);
+
         Testsuites testsuites = execute(lreTestRunClient);
-        File resultsFilePath = new File(Paths.get(workspace.toString(), artifactsResourceName, getJunitResultsFileName()).toString());
-        if (resultsFilePath.createNewFile()) {
-            LogHelper.log("File created: " + resultsFilePath.getName(), true);
-        } else {
-            LogHelper.log("File " + resultsFilePath.getName() + "already exists.", true);
-        }
-        setBuildStatus(createRunResults(resultsFilePath, testsuites));
+
+        File resultsFile = resolveResultsFile();
+
+        createResultsFileIfNeeded(resultsFile);
+
+        setBuildStatus(createRunResults(resultsFile, testsuites));
         provideStepResultStatus(buildStatus);
+
         return BuildStatus.Successful.equals(buildStatus);
+    }
+
+    private File resolveResultsFile() {
+        File fallbackFile = new File(
+                workspace.toString(),
+                artifactsResourceName + File.separator + getJunitResultsFileName()
+        );
+
+        if (output == null || output.toString().isBlank()) {
+            return fallbackFile;
+        }
+
+        File preferredFile = new File(
+                output.toString(),
+                getJunitResultsFileName()
+        );
+
+        File parentDir = preferredFile.getParentFile();
+        if (parentDir != null && (parentDir.exists() || parentDir.mkdirs())) {
+            return preferredFile;
+        }
+
+        LogHelper.log(
+                "Output path not usable (" + output + "), falling back to workspace.",
+                true
+        );
+
+        return fallbackFile;
+    }
+
+    private void createResultsFileIfNeeded(File resultsFile) throws IOException {
+        File parentDir = resultsFile.getParentFile();
+
+        if (parentDir != null && !parentDir.exists()) {
+            if (!parentDir.mkdirs() && !parentDir.exists()) {
+                throw new IOException("Failed to create directory: " + parentDir);
+            }
+        }
+
+        if (resultsFile.createNewFile()) {
+            LogHelper.log("File created: " + resultsFile.getName(), true);
+        } else {
+            LogHelper.log("File " + resultsFile.getName() + " already exists.", true);
+        }
     }
 
     private void provideStepResultStatus(BuildStatus buildStatus) {
@@ -325,9 +386,11 @@ public class LreTestRunBuilder {
             if (testName == null) {
                 testName = String.format("TestId_%s", getLreTestRunModel().getTestId());
                 LogHelper.log("getTestName failed. Using '%s' as testname.", true, testName);
-            } else
-                LogHelper.log("%s '%s'.", true,
-                        LocalizationManager.getString("TestNameIs"), testName);
+            }
+//            else {
+//                LogHelper.log("%s '%s'.", true,
+//                        LocalizationManager.getString("TestNameIs"), testName);
+//            }
         } catch (PcException | IOException ex) {
             testName = String.format("TestId_%s", getLreTestRunModel().getTestId());
             LogHelper.log("getTestName failed. Using '%s' as testname. Error: %s \n", true,
@@ -335,12 +398,15 @@ public class LreTestRunBuilder {
             LogHelper.logStackTrace(ex);
         }
         try {
-            publishRunIdVariable(runId);
+//            publishRunIdVariable(runId);
+//            LogHelper.log("%s: %s = %s \n", true,
+//                    LocalizationManager.getString("SetEnvironmentVariable"),
+//                    RUNID_BUILD_VARIABLE, (Object) runId);
             response = lreTestRunClient.waitForRunCompletion(runId);
             if (response != null && RunState.get(response.getRunState()) == FINISHED &&
                     getLreTestRunModel().getPostRunAction() != PostRunAction.DO_NOTHING) {
-                lreReportFile = lreTestRunClient.publishRunReport(runId, getReportDirectory());
-                lreNVInsgithsFile = lreTestRunClient.publishRunNVInsightsReport(runId,
+                lreTestRunClient.publishRunReport(runId, getReportDirectory());
+                lreTestRunClient.publishRunNVInsightsReport(runId,
                         getNVInsightsReportDirectory());
                 // Adding the trend report section if ID has been set or if the Associated Trend report is selected.
                 if (((("USE_ID").equals(getLreTestRunModel().getAddRunToTrendReport()) &&
@@ -359,7 +425,7 @@ public class LreTestRunBuilder {
                                         waitTimeInSecondsBeforeRequestingTrendReport);
                         LogHelper.log("%s", true,
                                 waitTimeBeforeRequestingTrendReportMessage);
-                        Thread.sleep(waitTimeInSecondsBeforeRequestingTrendReport * 1000);
+                        Thread.sleep(waitTimeInSecondsBeforeRequestingTrendReport * 1000L);
                     }
                     lreTestRunClient.downloadTrendReportAsPdf(getLreTestRunModel().getTrendReportId(),
                             getTrendReportsDirectory());
@@ -375,10 +441,11 @@ public class LreTestRunBuilder {
             LogHelper.logStackTrace(e);
         }
         Testsuites ret = new Testsuites();
-        parseLreRunResponse(ret, response, errorMessage, eventLogString);
+        if (response != null) {
+            parseLreRunResponse(ret, response, errorMessage, eventLogString);
+        }
         try {
-            parseLreTrendResponse(ret, lreTestRunClient, trendReportReady,
-                    getLreTestRunModel().getTrendReportId(), runId);
+            parseLreTrendResponse(lreTestRunClient, trendReportReady);
         } catch (IntrospectionException | NoSuchMethodException e) {
             LogHelper.logStackTrace(e);
         }
@@ -392,10 +459,9 @@ public class LreTestRunBuilder {
                 artifactsDirectoryName);
     }
 
-    private Testsuites parseLreTrendResponse(
-            Testsuites ret, LreTestRunClient pcTestRunClient,
-            boolean trendReportReady, String TrendReportID,
-            int runID)
+    private void parseLreTrendResponse(
+            LreTestRunClient pcTestRunClient,
+            boolean trendReportReady)
             throws IntrospectionException, NoSuchMethodException {
         if (trendReportReady) {
             String reportUrlTemp = trendReportStructure.replaceFirst(
@@ -405,7 +471,6 @@ public class LreTestRunBuilder {
             pcTestRunClient.publishTrendReport(reportUrl, getLreTestRunModel()
                     .getTrendReportId());
         }
-        return ret;
     }
 
     private String getTrendReportsDirectory() {
@@ -420,14 +485,6 @@ public class LreTestRunBuilder {
                 runReportStructure,
                 this.workspace,
                 artifactsDirectoryName);
-    }
-
-    private void publishRunIdVariable(int runId) {
-        //verify if there is a way to publish runid
-        LogHelper.log("publish RunId Variable \n%s=%s", true, RUNID_BUILD_VARIABLE, runId);
-        if(outputUpdater != null) {
-            outputUpdater.updateParameter(String.valueOf(runId));
-        }
     }
 
     private String buildEventLogString(PcRunEventLog eventLog) {
@@ -448,9 +505,7 @@ public class LreTestRunBuilder {
             waitTimeInSecondsBeforeRequestingTrendReport =
                     Math.min(waitTimeInSecondsBeforeRequestingTrendReport, 300);
             waitTimeInSecondsBeforeRequestingTrendReport =
-                    waitTimeInSecondsBeforeRequestingTrendReport < 0 ?
-                            0 :
-                            waitTimeInSecondsBeforeRequestingTrendReport;
+                    Math.max(waitTimeInSecondsBeforeRequestingTrendReport, 0);
             return waitTimeInSecondsBeforeRequestingTrendReport;
         }
         catch (NumberFormatException e) {
@@ -458,8 +513,7 @@ public class LreTestRunBuilder {
         }
     }
 
-    private Testsuites execute(LreTestRunClient lreTestRunClient)
-            throws InterruptedException {
+    private Testsuites execute(LreTestRunClient lreTestRunClient) {
         try {
             try {
                 if (!StringUtils.isBlank(getLreTestRunModel().getDescription())) {
@@ -492,31 +546,10 @@ public class LreTestRunBuilder {
         return pcTestRunClient.login();
     }
 
-    private boolean validateTrendReportIdIsNumeric(String trendReportId, boolean addRunToTrendReport) {
-        boolean isTrendReportIdNumeric = false;
-        if (addRunToTrendReport) {
-            if (trendReportId.isEmpty()) {
-                LogHelper.log(String.format("%s: %s.",
-                        LocalizationManager.getString("ParameterIsMissing"),
-                        LocalizationManager.getString("TrendReportIDIsMissing")), true);
-            } else {
-                try {
-                    int trendReportIdParsed = Integer.parseInt(trendReportId);
-                    isTrendReportIdNumeric = trendReportIdParsed > 0;
-                } catch (NumberFormatException e) {
-                    LogHelper.log(String.format("%s.",
-                            LocalizationManager.getString("IllegalParameter")), true);
-                }
-            }
-        }
-        return isTrendReportIdNumeric;
-    }
-
-    private Testsuites parseLreRunResponse(Testsuites ret,
-                                          PcRunResponse runResponse,
-                                          String errorMessage, String eventLogString)
-            throws IOException, InterruptedException {
-        RunState runState = RunState.get(runResponse.getRunState());
+    private void parseLreRunResponse(Testsuites ret,
+                                           PcRunResponse runResponse,
+                                           String errorMessage, String eventLogString)
+    {
         List<Testsuite> testSuites = ret.getTestsuite();
         Testsuite testSuite = new Testsuite();
         Testcase testCase = new Testcase();
@@ -528,7 +561,6 @@ public class LreTestRunBuilder {
         testSuite.getTestcase().add(testCase);
         testSuite.setName("Performance Test ID: " + runResponse.getTestID() + ", Run ID: " + runResponse.getID());
         testSuites.add(testSuite);
-        return ret;
     }
 
     private void updateTestStatus(Testcase testCase, PcRunResponse response, String errorMessage, String eventLog) {
@@ -584,9 +616,6 @@ public class LreTestRunBuilder {
                 eventLog), true);
     }
 
-    public String getRunResultsFileName() {
-        return junitResultsFileName;
-    }
 
     private String getJunitResultsFileName() {
         Format formatter = new SimpleDateFormat("ddMMyyyyHHmmssSSS");
@@ -599,23 +628,10 @@ public class LreTestRunBuilder {
         BuildStatus testBuildStatus = BuildStatus.Successful;
         try {
             if (testsuites != null) {
-                try {
-                    StringWriter writer = new StringWriter();
-                    JAXBContext context = JAXBContext.newInstance(Testsuites.class);
-                    Marshaller marshaller = context.createMarshaller();
-                    marshaller.marshal(testsuites, writer);
-                    FileWriter fileWriter = new FileWriter(filePath);
-                    fileWriter.write(writer.toString());
-                    fileWriter.close();
-                } catch (Exception ex) {
-                    StringWriter writer = new StringWriter();
-                    XStream xstream = new XStream();
-                    xstream.autodetectAnnotations(true);
-                    xstream.toXML(testsuites, writer);
-                    FileWriter fileWriter = new FileWriter(filePath);
-                    fileWriter.write(writer.toString());
-                    fileWriter.close();
-                }
+                StringWriter writer = testsuitesToStringWriter(testsuites);
+                FileWriter fileWriter = new FileWriter(filePath);
+                fileWriter.write(writer.toString());
+                fileWriter.close();
                 if (containsErrorsOrFailures(testsuites.getTestsuite())) {
                     testBuildStatus = BuildStatus.Failed;
                 }
@@ -635,6 +651,19 @@ public class LreTestRunBuilder {
         return testBuildStatus;
     }
 
+    private StringWriter testsuitesToStringWriter(Testsuites testsuites) {
+        StringWriter writer = new StringWriter();
+        try {
+            JAXBContext context = JAXBContext.newInstance(Testsuites.class);
+            Marshaller marshaller = context.createMarshaller();
+            marshaller.marshal(testsuites, writer);
+        } catch (Exception ex) {
+            XStream xstream = new XStream();
+            xstream.autodetectAnnotations(true);
+            xstream.toXML(testsuites, writer);
+        }
+        return writer;
+    }
     private boolean containsErrorsOrFailures(List<Testsuite> testsuites) {
         boolean ret = false;
         for (Testsuite testsuite : testsuites) {

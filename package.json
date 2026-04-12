@@ -5,11 +5,14 @@
   "main": "src/index.js",
   "scripts": {
     "test": "node src/index.js",
-    "build": "ncc build src/index.js --license license -o bundle",
-    "buildNpxW": "npm install --omit=dev && npm i @vercel/ncc && npx ncc build src/index.js --license license -o bundle && copy java\\target\\*-jar-with-dependencies.jar bundle\\",
-    "buildNpxU": "npm install --omit=dev && npm i @vercel/ncc && npx ncc build src/index.js --license license -o bundle && cp ./java/target/*-jar-with-dependencies.jar ./bundle/",
-    "buildWebpackW": "npm install --omit=dev && npm install --save-dev webpack && npm install --save babel-loader && webpack && copy java\\target\\*-jar-with-dependencies.jar bundle\\",
-    "buildWebpackU": "npm install --omit=dev && npm install --save-dev webpack && npm install --save babel-loader && webpack && cp ./java/target/*-jar-with-dependencies.jar ./bundle/"
+    "copyLicense": "node -e \"require('fs-extra').copySync('LICENSE', 'bundle/LICENSE')\"",
+    "copyJarToBundle": "node -e \"const fs=require('fs');const path=require('path');const dir=path.join('java','target');const files=fs.readdirSync(dir);const jar=files.find(f=>f.endsWith('-jar-with-dependencies.jar'));if(!jar){throw new Error('No *-jar-with-dependencies.jar found in java/target');}fs.mkdirSync('bundle',{recursive:true});fs.copyFileSync(path.join(dir,jar),path.join('bundle',jar));console.log('Copied',jar,'to bundle');\"",
+    "build": "ncc build src/index.js --license license -o bundle && npm run copyLicense",
+    "buildWebpack": "webpack && npm run copyJarToBundle && npm run copyLicense",
+    "buildNpxW": "npm install --omit=dev && npm i @vercel/ncc && npx ncc build src/index.js --license license -o bundle && copy java\\target\\*-jar-with-dependencies.jar bundle\\ && npm run copyLicense",
+    "buildNpxU": "npm install --omit=dev && npm i @vercel/ncc && npx ncc build src/index.js --license license -o bundle && cp ./java/target/*-jar-with-dependencies.jar ./bundle/ && npm run copyLicense",
+    "buildWebpackW": "npm install --omit=dev && npm install --save-dev webpack && npm install --save babel-loader && webpack && copy java\\target\\*-jar-with-dependencies.jar bundle\\ && npm run copyLicense",
+    "buildWebpackU": "npm install --omit=dev && npm install --save-dev webpack && npm install --save babel-loader && webpack && cp ./java/target/*-jar-with-dependencies.jar ./bundle/ && npm run copyLicense"
   },
   "repository": {
     "type": "git",
@@ -23,16 +26,17 @@
       "email": "ddanan@opentext.com"
     }
   ],
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "bugs": {
     "url": "https://github.com/MicroFocus/lre-gh-action/issues"
   },
   "homepage": "https://github.com/MicroFocus/lre-gh-action/blob/main/README.md",
   "dependencies": {
-    "@actions/core": "^1.10.1",
-    "child_process": "^1.0.2",
-    "fs-extra": "^11.3.0",
-    "path": "^0.12.7"
+    "@actions/core": "^1.11.1",
+    "fs-extra": "^11.3.4"
+  },
+  "overrides": {
+    "undici": ">=6.23.1"
   },
   "devDependencies": {
     "@babel/core": "^7.14.6",
@@ -41,7 +45,7 @@
     "@vercel/ncc": "^0.38.1",
     "babel-loader": "^8.4.1",
     "dotenv": "^16.4.5",
-    "webpack": "^5.97.1",
+    "webpack": "^5.106.1",
     "webpack-cli": "^4.7.2"
   }
 }
