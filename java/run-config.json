@@ -1,0 +1,15 @@
+{
+  "lre_action": "WorkspaceSync",
+  "lre_description": "Local IntelliJ run",
+  "lre_server": "lres-nightly-aqa-pg.lr.admlabs.aws.swinfra.net?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3",
+  "lre_https_protocol": false,
+  "lre_username": "sa",
+  "lre_password": "saqa",
+  "lre_authenticate_with_token": false,
+  "lre_domain": "DANIEL",
+  "lre_project": "proj1",
+  "lre_output_dir": "C:/temp/lre_output_dir",
+  "lre_workspace_dir": "C:/Git/plugin/jenkins-sync",
+  "lre_runtime_only" : true,
+  "lre_enable_stacktrace": true
+}
