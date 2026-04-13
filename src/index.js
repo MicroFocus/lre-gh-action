@@ -186,7 +186,7 @@ async function run() {
     await fs.writeFile(configFilePath, JSON.stringify(config, null, 2));
 
     // Path to the JAR file
-    const jarFilePath = path.resolve(__dirname, 'lre-actions-1.1-SNAPSHOT-jar-with-dependencies.jar');
+    const jarFilePath = path.resolve(__dirname, 'lre-actions-1.2-SNAPSHOT-jar-with-dependencies.jar');
 
     const lreRunId = await runJavaProcess(jarFilePath, configFilePath);
     console.log('process completed successfully.');

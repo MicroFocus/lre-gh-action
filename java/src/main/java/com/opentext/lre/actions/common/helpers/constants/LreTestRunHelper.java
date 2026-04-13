@@ -5,9 +5,9 @@ import org.apache.commons.io.FilenameUtils;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.zip.ZipEntry;
@@ -22,7 +22,7 @@ public class LreTestRunHelper {
     }
 
     public static String verifyStringValueIsIntAndPositive(String supplied, int defaultValue) {
-        if (supplied != null && isInteger(supplied)) {
+        if (isInteger(supplied)) {
             int suppliedInt = Integer.parseInt(supplied);
             if (suppliedInt > 0)
                 return Integer.toString(suppliedInt);
@@ -49,23 +49,17 @@ public class LreTestRunHelper {
             Path destinationPath = Paths.get(destinationname).toAbsolutePath().normalize();
             Files.createDirectories(destinationPath);
 
-            byte[] buf = new byte[1024];
             ZipEntry zipentry;
 
             while ((zipentry = zipinputstream.getNextEntry()) != null) {
-                Path resolvedPath = destinationPath.resolve(
-                                zipentry.getName()
-                                        .replace('/', File.separatorChar)
-                                        .replace('\\', File.separatorChar))
-                        .normalize();
+                String entryName = zipentry.getName().replace('\\', '/');
+                Path resolvedPath = destinationPath.resolve(entryName).normalize();
 
                 if (!resolvedPath.startsWith(destinationPath)) {
                     throw new IOException("Blocked unsafe ZIP entry: " + zipentry.getName());
                 }
 
-                File newFile = resolvedPath.toFile();
-
-                if (zipentry.isDirectory()) {
+                if (zipentry.isDirectory() || entryName.endsWith("/")) {
                     Files.createDirectories(resolvedPath);
                     zipinputstream.closeEntry();
                     continue;
@@ -77,12 +71,7 @@ public class LreTestRunHelper {
                     Files.createDirectories(parentDir);
                 }
 
-                try (FileOutputStream fileoutputstream = new FileOutputStream(newFile)) {
-                    int n;
-                    while ((n = zipinputstream.read(buf)) > 0) {
-                        fileoutputstream.write(buf, 0, n);
-                    }
-                }
+                Files.copy(zipinputstream, resolvedPath, StandardCopyOption.REPLACE_EXISTING);
 
                 zipinputstream.closeEntry();
             }

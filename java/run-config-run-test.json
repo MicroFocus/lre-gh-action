@@ -1,7 +1,7 @@
 {
   "lre_action": "ExecuteLreTest",
   "lre_description": "Automated test run from CI/CD",
-  "lre_server": "lres-nightly-aqa-pg.lr.admlabs.aws.swinfra.net?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3",
+  "lre_server": "lreserver?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3",
   "lre_https_protocol": false,
   "lre_authenticate_with_token": false,
   "lre_domain": "DANIEL",

@@ -1,10 +1,8 @@
 {
   "lre_action": "WorkspaceSync",
   "lre_description": "Local IntelliJ run",
-  "lre_server": "lres-nightly-aqa-pg.lr.admlabs.aws.swinfra.net?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3",
+  "lre_server": "lreserver?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3",
   "lre_https_protocol": false,
-  "lre_username": "sa",
-  "lre_password": "saqa",
   "lre_authenticate_with_token": false,
   "lre_domain": "DANIEL",
   "lre_project": "proj1",

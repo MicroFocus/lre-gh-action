@@ -31,6 +31,48 @@ public class LreTestRunHelperTest extends TestCase {
         assertEquals("hello", Files.readString(destination.resolve("folder").resolve("file.txt")));
     }
 
+    public void testGetZipFilesExtractsNestedEntriesWithoutDirectoryRecords() throws Exception {
+        Path zipFile = Files.createTempFile("lre-helper-nested", ".zip");
+        Path destination = Files.createTempDirectory("lre-helper-nested-out");
+
+        writeZip(zipFile, zip -> {
+            zip.putNextEntry(new ZipEntry("LreReports/HtmlReport/Report/adv_properties.css"));
+            zip.write("body { color: black; }".getBytes());
+            zip.closeEntry();
+        });
+
+        LreTestRunHelper.getZipFiles(zipFile.toString(), destination.toString());
+
+        assertEquals(
+                "body { color: black; }",
+                Files.readString(destination
+                        .resolve("LreReports")
+                        .resolve("HtmlReport")
+                        .resolve("Report")
+                        .resolve("adv_properties.css")));
+    }
+
+    public void testGetZipFilesExtractsWindowsStyleNestedEntries() throws Exception {
+        Path zipFile = Files.createTempFile("lre-helper-windows", ".zip");
+        Path destination = Files.createTempDirectory("lre-helper-windows-out");
+
+        writeZip(zipFile, zip -> {
+            zip.putNextEntry(new ZipEntry("LreReports\\HtmlReport\\Report\\adv_properties.css"));
+            zip.write("body { background: white; }".getBytes());
+            zip.closeEntry();
+        });
+
+        LreTestRunHelper.getZipFiles(zipFile.toString(), destination.toString());
+
+        assertEquals(
+                "body { background: white; }",
+                Files.readString(destination
+                        .resolve("LreReports")
+                        .resolve("HtmlReport")
+                        .resolve("Report")
+                        .resolve("adv_properties.css")));
+    }
+
     public void testGetZipFilesBlocksZipSlipEntries() throws Exception {
         Path zipFile = Files.createTempFile("lre-helper-slip", ".zip");
         Path destination = Files.createTempDirectory("lre-helper-slip-out");
