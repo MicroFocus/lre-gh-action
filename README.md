@@ -1,18 +1,51 @@
 ![OpenText Logo](https://upload.wikimedia.org/wikipedia/commons/1/1b/OpenText_logo.svg)
 
-# OpenText Enterprise Performance Engineering Test Execution Action
-This GitHub Action is intended to:
-- Trigger and monitor a performance test execution (preexisting or designed according to a YAML file in the GitHub repository) on the server, optionally collect reports (analysis and trend reports), and report status.
-- Upload scripts from a workspace to a project on an OpenText Enterprise Performance Engineering server.
+# OpenText Enterprise Performance Engineering GitHub Action
 
-## Prerequisites
+## Overview
+
+This repository is used to build and maintain OpenText Enterprise Performance Engineering GitHub Action.
+
+## What This GitHub Action Does
+
+### **ExecuteLreTest** action - Execute load tests on OpenText Enterprise Performance Engineering server. At runtime, the action:
+
+1. Authenticates with an OpenText Enterprise Performance Engineering server
+2. Triggers a performance test execution
+3. Allocates or reuses a timeslot (based on configuration)
+4. Monitors test execution until completion
+5. Optionally collates and analyzes results
+6. Writes logs and result artifacts to configured directories
+7. Exits with a deterministic status code suitable for pipeline gating
+
+### **WorkspaceSync** action (Technology Preview) - Synchronize local workspace scripts to OpenText Enterprise Performance Engineering server. At runtime, the action:
+
+1. Authenticates with an OpenText Enterprise Performance Engineering server
+2. Scans the workspace for folders considered as supported scripts. Folders identified as scripts are:
+    * VuGen scripts: folders containing a .usr file
+    * JMeter scripts: folders containing a .jmx file
+    * Gatling scripts: folders containing a .scala file
+    * Selenium or unit test scripts: folders containing a .java file
+    * DevWeb scripts: folders containing both main.js AND rts.yml files
+3. Zips each folder identified as script and uploads it to OpenText Enterprise Performance Engineering project
+4. Failure handling:
+    * If 5 consecutive script uploads fail, the action is interrupted with failure
+    * If at least 50% of the scripts found in the workspace are uploaded successfully, the action reports success
+    * Otherwise, the action reports failure
+5. Writes logs for each upload in console and in workspace
+6. Exits with a deterministic status code suitable for pipeline gating
+
+## Requirements
 
 1. Any workflow including this action will need to have preliminary steps such as (see example below):
- - actions/checkout@v4
- - actions/setup-java@v4 (version 17)
- - actions/setup-node@v4 followed by another step running `npm install`.
+ - actions/checkout@v6 to checkout git repository into GitHub job workspace.
+ - actions/setup-java@v5 (version 17) to setup environment with java 17.
+ - actions/setup-node@v6 (version 25 for example or latest) to setup environment with nodejs .
 2. Usernames and passwords will need to be saved as secrets and used as environment variables in the workflow.
-3. If you want to save reports as build artifacts, you can add the following step: actions/upload-artifact@v4 (see example below).
+3. If you want to save reports as build artifacts, you can add the following step: actions/upload-artifact@v7 (see example below).
+4. Writable workspace and output directories.
+5. Network access to the OpenText Enterprise Performance Engineering server
+6. Valid OpenText Enterprise Performance Engineering credentials  (username/password or token).
 
 ## Action Inputs
 
@@ -24,12 +57,16 @@ The action supports two operation modes:
 
 | Input | Description | Action |
 |---|---|---|
-| **lre_server** | Server, port (when not mentioned, default is 80 or 433 for secure), and tenant (when not mentioned, default is `?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3`). Example: `mylreserver.mydomain.com:81/?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3` | Both |
-| **lre_username** | Username | Both |
-| **lre_password** | Password | Both |
+| **lre_server** | Server, port (when not mentioned, default is 80 or 443 for secure), and tenant (when not mentioned, default is `?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3`). Example: `mylreserver.mydomain.com:81/?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3` | Both |
+| **lre_username** | Username (or ID part of token)  | Both |
+| **lre_password** | Password (or secret part of token) | Both |
 | **lre_domain** | Domain (case sensitive) | Both |
 | **lre_project** | Project (case sensitive) | Both |
-| **lre_test** | Valid test ID# or relative path to a YAML file in the GitHub repository that defines new test design creation | ExecuteLreTest |
+| **lre_test** | Required when `lre_action=ExecuteLreTest`. Valid test ID# or relative path to a YAML file in the workspace that defines new test design creation | ExecuteLreTest |
+
+
+\* Either username/password **or** token authentication must be used.
+
 
 ### Optional Parameters
 
@@ -37,23 +74,23 @@ The action supports two operation modes:
 |---|---|---|---|
 | **lre_action** | Action to be triggered. Supported values: ExecuteLreTest, WorkspaceSync. If not defined, ExecuteLreTest is used. | Both | ExecuteLreTest |
 | **lre_description** | Description of the action (displayed in logs) | Both | |
-| **lre_https_protocol** | Use secured protocol for connecting to the server. Possible values: true or false | Both | true |
-| **lre_authenticate_with_token** | Authenticate with token (access key). Required when SSO is configured in the server. Possible values: true or false | Both | false |
-| **lre_workspace_dir** | Local workspace root path. For WorkspaceSync this is the directory scanned for scripts and where logs are written to `<workspace>/logs` | Both | `${{ github.workspace }}` |
-| **lre_test_instance** | Specify AUTO to use any instance or a specific instance ID | ExecuteLreTest | AUTO |
-| **lre_timeslot_duration_hours** | Timeslot duration in hours | ExecuteLreTest | 0 |
-| **lre_timeslot_duration_minutes** | Timeslot duration in minutes | ExecuteLreTest | 30 |
-| **lre_post_run_action** | Possible values: 'Collate Results', 'Collate and Analyze', or 'Do Not Collate' | ExecuteLreTest | Do Not Collate |
-| **lre_vuds_mode** | Use VUDS licenses. Possible values: true or false | ExecuteLreTest | false |
-| **lre_trend_report** | Possible values: ASSOCIATED, a valid report ID#, or blank for no trend monitoring in build | ExecuteLreTest | |
+| **lre_https_protocol** | Use secured protocol for connecting to the server (`true` / `false`) | Both | true |
+| **lre_authenticate_with_token** | Use token authentication (required for SSO). (`true` / `false`) | Both | false |
+| **lre_workspace_dir** | Local workspace root path. For WorkspaceSync this is the directory scanned for scripts and where logs are written to `<workspace>/logs` | Both | If omitted, resolved with `lre_output_dir`; if both are omitted, `./` |
+| **lre_test_instance** | `AUTO` or specific instance ID | ExecuteLreTest | AUTO |
+| **lre_timeslot_duration_hours** | Timeslot duration (hours) | ExecuteLreTest | 0 |
+| **lre_timeslot_duration_minutes** | Timeslot duration (minutes) | ExecuteLreTest | 30 |
+| **lre_post_run_action** | `Collate Results`, `Collate and Analyze`, `Do Not Collate` | ExecuteLreTest | Do Not Collate |
+| **lre_vuds_mode** | Use VUDS licenses (`true` / `false`) | ExecuteLreTest | false |
+| **lre_trend_report** | `ASSOCIATED` - the trend report defined in the test design will be used', Valid report ID - Report ID will be used for trend, No value or not defined - no trend monitoring. | ExecuteLreTest | |
 | **lre_proxy_out_url** | Proxy URL | Both | |
 | **lre_username_proxy** | Proxy username | Both | |
 | **lre_password_proxy** | Proxy password | Both | |
-| **lre_search_timeslot** | Experimental: search for matching timeslot instead of creating a new one. Possible values: true or false | ExecuteLreTest | false |
-| **lre_status_by_sla** | Report success status according to SLA. Possible values: true or false | ExecuteLreTest | false |
+| **lre_search_timeslot** | Experimental: Search for matching timeslot instead of creating a new timeslot (`true` / `false`) | ExecuteLreTest | false |
+| **lre_status_by_sla** | Report success based on SLA (`true` / `false`) | ExecuteLreTest | false |
 | **lre_output_dir** | Directory to read the checkout folder and to save results (use `${{ github.workspace }}`) | ExecuteLreTest | ./ |
-| **lre_runtime_only** | WorkspaceSync only. Upload scripts in runtime-only mode. Possible values: true or false | WorkspaceSync | true |
-| **lre_enable_stacktrace** | If true, exception stacktrace is displayed in logs | Both | false |
+| **lre_runtime_only** | Scripts upload mode (Runtime files only for true, All files for false) (`true` / `false`) | WorkspaceSync | true |
+| **lre_enable_stacktrace** | Print stacktrace on errors (`true` / `false`) | Both | false |
 
 ### WorkspaceSync behavior
 
@@ -62,6 +99,20 @@ When `lre_action` is set to `WorkspaceSync`, the action scans `lre_workspace_dir
 Each detected script folder is zipped and uploaded to the matching subject path in OpenText Enterprise Performance Engineering, preserving the relative folder structure under `Subject`.
 
 The sync result is considered successful when at least 50% of script uploads succeed. The process also stops early after 5 consecutive upload failures.
+
+Directory resolution note: if `lre_output_dir` and `lre_workspace_dir` are both omitted, both resolve to `./`.
+
+
+### Outputs
+
+| Path | Purpose |
+|-----|---------|
+| **lre_output_dir** | Result files and summarized outputs |
+| **lre_workspace_dir** | Workspace for logs, reports, and checkout |
+
+These directories **must be writable**.
+
+---
 
 ## Examples
 
@@ -84,27 +135,27 @@ jobs:
       lre_password: ${{ secrets.LRE_PASSWORD }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: adopt
           java-version: '17'
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '25'
 
       - name: Use GitHub Action
-        uses: MicroFocus/lre-gh-action@v1.0.3
+        uses: MicroFocus/lre-gh-action@v1.0.4
         with:
           lre_action: ExecuteLreTest
           lre_description: running new yaml test
           lre_server: mylreserver.mydomain.com/?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3
           lre_https_protocol: true
-          lre_authenticate_with_token: false
+          lre_authenticate_with_token: true
           lre_domain: DANIEL
           lre_project: proj1
           lre_test: YamlTest/createTestFromYaml.yaml
@@ -118,7 +169,7 @@ jobs:
           lre_output_dir: ${{ github.workspace }}
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: build-artifacts
           path: ${{ github.workspace }}/LreResult
@@ -143,7 +194,7 @@ automatic_trending:
 ##################################################
 ```
 
-### Authenticate using username and password (with `lre_authenticate_with_token` set to true, which requires token credentials), execute a performance test, wait for analysis and trending to complete, download reports, and upload them as build artifacts.
+### Authenticate using username and password (`lre_authenticate_with_token: false`), execute a performance test, wait for analysis and trending to complete, download reports, and upload them as build artifacts.
 
 ```yml
 name: test
@@ -158,31 +209,31 @@ jobs:
     runs-on: ubuntu-latest
     name: Execute test
     env:
-      lre_username: ${{ secrets.LRE_USERNAME_TOKEN }}
-      lre_password: ${{ secrets.LRE_PASSWORD_TOKEN }}
+      lre_username: ${{ secrets.LRE_USERNAME }}
+      lre_password: ${{ secrets.LRE_PASSWORD }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: adopt
           java-version: '17'
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '25'
 
       - name: Use My GitHub Action
-        uses: MicroFocus/lre-gh-action@v1.0.3
+        uses: MicroFocus/lre-gh-action@v1.0.4
         with:
           lre_action: ExecuteLreTest
           lre_description: running new yaml test
           lre_server: myserver.mydomain.com/?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3
           lre_https_protocol: true
-          lre_authenticate_with_token: true
+          lre_authenticate_with_token: false
           lre_domain: DANIEL
           lre_project: proj1
           lre_test: 176
@@ -202,7 +253,7 @@ jobs:
           path: ${{ github.workspace }}/LreResult
 ```
 
-### Synchronize scripts from repository workspace to OpenText Enterprise Performance Engineering (WorkspaceSync)
+### Synchronize scripts from repository workspace (located in 'scripts' folder) to OpenText Enterprise Performance Engineering (WorkspaceSync)
 
 ```yml
 name: Synchronize scripts to OpenText Enterprise Performance Engineering
@@ -218,21 +269,21 @@ jobs:
       lre_password: ${{ secrets.LRE_PASSWORD }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: adopt
           java-version: '17'
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '25'
 
       - name: Synchronize scripts
-        uses: MicroFocus/lre-gh-action@v1.0.3
+        uses: MicroFocus/lre-gh-action@v1.0.4
         with:
           lre_action: WorkspaceSync
           lre_description: synchronize scripts from workspace
@@ -241,9 +292,14 @@ jobs:
           lre_authenticate_with_token: false
           lre_domain: DANIEL
           lre_project: proj1
-          lre_workspace_dir: ${{ github.workspace }}
+          lre_workspace_dir: ${{ github.workspace }}/scripts
           lre_runtime_only: true
           lre_enable_stacktrace: true
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-artifacts
+          path: '${{ github.workspace }}/scripts/logs'
 ```
 
 How to import tests from YAML files saved in the Git repository

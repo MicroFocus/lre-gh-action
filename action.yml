@@ -5,7 +5,7 @@ branding:
   color: 'blue'
 inputs:
   lre_action:
-    description: 'action to be triggered. Current supported action: ExecuteLreTest'
+    description: 'action to be triggered. Supported values: ExecuteLreTest, WorkspaceSync'
     required: false
     default: 'ExecuteLreTest'
   lre_description:
@@ -13,14 +13,14 @@ inputs:
     required: false
   lre_server:
     description: >-
-      'Server, port (when not mentionned, default is 80 or 433 for secured) 
+      'Server, port (when not mentionned, default is 80 or 443 for secured) 
       and tenant (when not mentionned, default is ?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3). 
       e.g.: myserver.mydomain.com:81/?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3'
     required: true
   lre_https_protocol:
     description: 'Use secured protocol for connecting to LRE. Possible values: true or false'
     required: false
-    default: 'false'
+    default: 'true'
   lre_authenticate_with_token:
     description: 'Authenticate with token (access key). Required when SSO is configured in the server. Possible values: true or false'
     required: false
@@ -38,11 +38,8 @@ inputs:
     description: 'project (case sensitive)'
     required: true
   lre_test:
-    description: >-
-      'Possible values: 
-      - valid test ID#  
-      - relative path to workspace of yaml file defining new test design creation
-    required: true
+    description: 'ExecuteLreTest only. Possible values: valid test ID# or relative path to workspace of YAML file defining new test design creation'
+    required: false
   lre_test_instance:
     description: 'either specify AUTO to use any instance or a specific instance ID'
     required: false
@@ -98,6 +95,14 @@ inputs:
     description: 'The directory to save results'
     required: false
     default: './'
+  lre_workspace_dir:
+    description: 'Workspace root directory. For WorkspaceSync this is the directory scanned for scripts and where logs are written to <workspace>/logs'
+    required: false
+    default: ''
+  lre_runtime_only:
+    description: 'WorkspaceSync only. If true upload runtime files only, if false upload all files'
+    required: false
+    default: 'true'
   lre_enable_stacktrace:
     description: 'if set to true, it will show stack of exception when error occurs'
     required: false
