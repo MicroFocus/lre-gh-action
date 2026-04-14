@@ -1,0 +1,56 @@
+name: Test My GitHub Action
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'scripts/**'
+    tags-ignore:
+      - 'v*.*.*'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'scripts/**'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Start syncing workspace with LRE
+    env:
+      lre_username: ${{ secrets.LRE_USERNAME }}
+      lre_password: ${{ secrets.LRE_PASSWORD }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: adopt
+          java-version: '17'
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '25'
+      - name: List _actions directory contents
+        run: 'ls -R /home/runner/work/_actions'
+      - name: Extract CustomScripts.zip
+        run: |
+          unzip -o "${{ github.workspace }}/scripts/CustomScripts.zip" -d "${{ github.workspace }}/scripts/CustomScripts"
+      - name: Run My GitHub Action
+        uses: MicroFocus/lre-gh-action@v1.0.4
+        with:
+          lre_action: WorkspaceSync 
+          lre_description: Syncing scripts from workspace to LRE
+          lre_server: ${{ secrets.LRE_SERVER }}
+          lre_https_protocol: true
+          lre_authenticate_with_token: true
+          lre_domain: DANIEL
+          lre_project: proj1
+          lre_workspace_dir: ${{ github.workspace }}/scripts
+          lre_runtime_only: true
+          lre_enable_stacktrace: true
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-artifacts
+          path: '${{ github.workspace }}/scripts/logs'
