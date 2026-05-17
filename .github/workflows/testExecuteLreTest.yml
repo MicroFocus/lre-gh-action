@@ -35,7 +35,7 @@ jobs:
         run: 'ls -R /home/runner/work/_actions'
       - name: Run My ExecuteLreTest GitHub Action
         id: lre_action
-        uses: MicroFocus/lre-gh-action@v1.0.4
+        uses: MicroFocus/lre-gh-action@v1.0.5
         with:
           lre_action: ExecuteLreTest
           lre_description: running new yaml test
