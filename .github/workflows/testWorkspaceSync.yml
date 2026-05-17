@@ -1,4 +1,4 @@
-name: Test My GitHub Action
+name: Test My WorkspaceSync GitHub Action
 on:
   push:
     branches:
@@ -37,7 +37,7 @@ jobs:
         run: |
           unzip -o "${{ github.workspace }}/scripts/CustomScripts.zip" -d "${{ github.workspace }}/scripts/CustomScripts"
       - name: Run My WorkspaceSync GitHub Action
-        uses: MicroFocus/lre-gh-action@v1.0.5
+        uses: MicroFocus/lre-gh-action@v1.0.6
         with:
           lre_action: WorkspaceSync 
           lre_description: Syncing scripts from workspace to LRE

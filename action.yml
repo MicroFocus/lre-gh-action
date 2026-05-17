@@ -115,5 +115,5 @@ outputs:
   lre_run_id:
     description: 'The ID of test run started by this action'
 runs:
-  using: 'node20'
+  using: 'node24'
   main: 'bundle/index.js'

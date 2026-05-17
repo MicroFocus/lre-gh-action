@@ -119,6 +119,7 @@ These directories **must be writable**.
 
 | Version | Date | Highlights |
 |---|---|---|
+| **1.0.6** | 2026-05-17 | - Updated the GitHub Action runtime to `node24` to stay compatible with the current GitHub Actions runner deprecation schedule |
 | **1.0.5** | 2026-05-17 | - Added `lre_workspace_sync_success_threshold` for `WorkspaceSync` (`0`-`100`, fallback to `50`)<br>- `WorkspaceSync` now passes/fails based on the configured upload success percentage<br>- Improved `lre_run_id` availability for `ExecuteLreTest` outputs in workflow steps |
 | **1.0.4** | Previous release | - Baseline behavior before the new `WorkspaceSync` threshold and `lre_run_id` output reliability improvements |
 
@@ -157,7 +158,7 @@ jobs:
           node-version: '25'
 
       - name: Use GitHub Action
-        uses: MicroFocus/lre-gh-action@v1.0.5
+        uses: MicroFocus/lre-gh-action@v1.0.6
         with:
           lre_action: ExecuteLreTest
           lre_description: running new yaml test
@@ -235,7 +236,7 @@ jobs:
           node-version: '25'
 
       - name: Use My GitHub Action
-        uses: MicroFocus/lre-gh-action@v1.0.5
+        uses: MicroFocus/lre-gh-action@v1.0.6
         with:
           lre_action: ExecuteLreTest
           lre_description: running new yaml test
@@ -291,7 +292,7 @@ jobs:
           node-version: '25'
 
       - name: Synchronize scripts
-        uses: MicroFocus/lre-gh-action@v1.0.5
+        uses: MicroFocus/lre-gh-action@v1.0.6
         with:
           lre_action: WorkspaceSync
           lre_description: synchronize scripts from workspace
