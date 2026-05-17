@@ -1,4 +1,4 @@
-name: 'OpenText Enterprise Performance Engineering Test Execution Action'
+﻿name: 'OpenText Enterprise Performance Engineering Test Execution Action'
 description: 'Run test in OpenText Enterprise Performance Engineering'
 author: 'OpenText'
 branding:
@@ -24,7 +24,7 @@ inputs:
   lre_authenticate_with_token:
     description: 'Authenticate with token (access key). Required when SSO is configured in the server. Possible values: true or false'
     required: false
-    default: 'false'  
+    default: 'false'
   lre_username:
     description: 'username'
     required: true
@@ -103,11 +103,11 @@ inputs:
     description: 'WorkspaceSync only. If true upload runtime files only, if false upload all files'
     required: false
     default: 'true'
-   lre_workspace_sync_success_threshold:
-     description: 'WorkspaceSync only. Required successful upload percentage (0-100). Out-of-range values fall back to 50'
-     required: false
-     default: '50'
-   lre_workspace_sync_base_sha:
+  lre_workspace_sync_success_threshold:
+    description: 'WorkspaceSync only. Required successful upload percentage (0-100). Out-of-range values fall back to 50'
+    required: false
+    default: '50'
+  lre_workspace_sync_base_sha:
     description: 'WorkspaceSync only. Optional explicit base commit SHA used to compute changed files for incremental sync'
     required: false
     default: ''
