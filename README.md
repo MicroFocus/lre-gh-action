@@ -309,6 +309,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup Java
         uses: actions/setup-java@v5
@@ -321,21 +323,22 @@ jobs:
         with:
           node-version: '25'
 
-       - name: Synchronize scripts
-         uses: MicroFocus/lre-gh-action@v1.0.7
-         with:
-           lre_action: WorkspaceSync
-           lre_description: synchronize scripts from workspace
-           lre_server: myserver.mydomain.com/?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3
-           lre_https_protocol: true
-           lre_authenticate_with_token: false
-           lre_domain: DANIEL
-           lre_project: proj1
-           lre_workspace_dir: ${{ github.workspace }}/scripts
-           lre_runtime_only: true
-           lre_workspace_sync_success_threshold: 70
-           lre_workspace_sync_delete_removed_scripts: false
-           lre_enable_stacktrace: true
+      - name: Synchronize scripts
+        uses: MicroFocus/lre-gh-action@v1.0.7
+        with:
+          lre_action: WorkspaceSync
+          lre_description: synchronize scripts from workspace
+          lre_server: myserver.mydomain.com/?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3
+          lre_https_protocol: true
+          lre_authenticate_with_token: false
+          lre_domain: DANIEL
+          lre_project: proj1
+          lre_workspace_dir: ${{ github.workspace }}/scripts
+          lre_runtime_only: true
+          lre_workspace_sync_success_threshold: 70
+          lre_workspace_sync_delete_removed_scripts: false
+          lre_enable_stacktrace: true
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
         with:

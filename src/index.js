@@ -267,10 +267,13 @@ function enrichWorkspaceSyncConfig(config) {
      config.lre_workspace_sync_deleted_files = deletedFiles;
      core.info(`WorkspaceSync: performing incremental sync with ${changedFiles.length} changed file(s), ${deletedFiles.length} deleted file(s) found using ${diffRange.source}.`);
      return config;
-   } catch (error) {
-     core.warning(`WorkspaceSync: failed to compute changed files: ${error.message}. Falling back to full sync.`);
-     return config;
-   }
+    } catch (error) {
+      const hint = error.message && error.message.includes('git diff')
+        ? ' Tip: make sure your checkout step uses fetch-depth: 0 so that both base and head commits are available locally.'
+        : '';
+      core.warning(`WorkspaceSync: failed to compute changed files: ${error.message}.${hint} Falling back to full sync.`);
+      return config;
+    }
 }
 
 function buildConfig() {
