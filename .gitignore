@@ -36,3 +36,12 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+### Node ###
+node_modules/
+
+### Security scan temp artifacts ###
+npm-audit-*.json
+npm-audit-*.txt
+java/.github/java-upgrade/
+.github/java-upgrade/

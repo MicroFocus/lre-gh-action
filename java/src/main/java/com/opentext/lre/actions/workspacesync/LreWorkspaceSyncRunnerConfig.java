@@ -19,6 +19,7 @@ public final class LreWorkspaceSyncRunnerConfig {
         String proxyPassword = json.optString("lre_password_proxy", "");
         String workspacePath = requireString(json, "lre_workspace_dir");
         boolean runtimeOnly = json.optBoolean("lre_runtime_only", true);
+        int workspaceSyncSuccessThresholdPercent = parseIntOrDefault(json.opt("lre_workspace_sync_success_threshold"), 50);
         boolean lreEnableStacktrace = json.optBoolean("lre_enable_stacktrace", false);
         String description = json.optString("lre_description", "");
 
@@ -34,9 +35,31 @@ public final class LreWorkspaceSyncRunnerConfig {
                 proxyPassword,
                 workspacePath,
                 runtimeOnly,
+                workspaceSyncSuccessThresholdPercent,
                 authenticateWithToken,
                 lreEnableStacktrace,
                 description);
+    }
+
+    private static int parseIntOrDefault(Object value, int defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        if (value instanceof String) {
+            String textValue = ((String) value).trim();
+            if (textValue.isEmpty()) {
+                return defaultValue;
+            }
+            try {
+                return Integer.parseInt(textValue);
+            } catch (NumberFormatException ex) {
+                return defaultValue;
+            }
+        }
+        return defaultValue;
     }
 
     private static String requireString(JSONObject json, String key) {

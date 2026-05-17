@@ -24,6 +24,7 @@ public class LreWorkspaceSyncRunnerConfigTest extends TestCase {
         assertEquals("P", model.getProject());
         assertEquals("C:/ws", model.getWorkspace());
         assertTrue(model.isRuntimeOnly());
+        assertEquals(50, model.getWorkspaceSyncSuccessThresholdPercent());
         assertFalse(model.isAuthenticateWithToken());
         assertFalse(model.isEnableStacktrace());
         assertEquals("", model.getDescription());
@@ -43,6 +44,7 @@ public class LreWorkspaceSyncRunnerConfigTest extends TestCase {
                 .put("lre_password_proxy", "ppass")
                 .put("lre_workspace_dir", "C:/ws")
                 .put("lre_runtime_only", false)
+                .put("lre_workspace_sync_success_threshold", 70)
                 .put("lre_enable_stacktrace", true)
                 .put("lre_description", "sync");
 
@@ -54,8 +56,24 @@ public class LreWorkspaceSyncRunnerConfigTest extends TestCase {
         assertEquals("puser", model.getUsernameProxy());
         assertEquals("ppass", model.getPasswordProxy());
         assertFalse(model.isRuntimeOnly());
+        assertEquals(70, model.getWorkspaceSyncSuccessThresholdPercent());
         assertTrue(model.isEnableStacktrace());
         assertEquals("sync", model.getDescription());
+    }
+
+    public void testFromJsonInvalidThresholdFallsBackToDefault() {
+        JSONObject json = new JSONObject()
+                .put("lre_server", "myserver")
+                .put("lre_username", "user")
+                .put("lre_password", "pass")
+                .put("lre_domain", "D")
+                .put("lre_project", "P")
+                .put("lre_workspace_dir", "C:/ws")
+                .put("lre_workspace_sync_success_threshold", "invalid");
+
+        LreWorkspaceSyncModel model = LreWorkspaceSyncRunnerConfig.fromJson(json);
+
+        assertEquals(50, model.getWorkspaceSyncSuccessThresholdPercent());
     }
 
     public void testFromJsonMissingRequiredKeyThrows() {

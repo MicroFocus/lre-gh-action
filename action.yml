@@ -103,6 +103,10 @@ inputs:
     description: 'WorkspaceSync only. If true upload runtime files only, if false upload all files'
     required: false
     default: 'true'
+  lre_workspace_sync_success_threshold:
+    description: 'WorkspaceSync only. Required successful upload percentage (0-100). Out-of-range values fall back to 50'
+    required: false
+    default: '50'
   lre_enable_stacktrace:
     description: 'if set to true, it will show stack of exception when error occurs'
     required: false

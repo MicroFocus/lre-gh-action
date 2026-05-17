@@ -15,7 +15,7 @@ public class LreWorkspaceSyncTaskTest extends TestCase {
 
     public void testExecuteReturnsFailureWhenAuthenticationFails() throws Exception {
         Path workspace = Files.createTempDirectory("lre-sync-auth-fail");
-        LreWorkspaceSyncModel model = createModel(workspace.toString());
+        LreWorkspaceSyncModel model = createModel(workspace.toString(), 50);
 
         FakeRestClient restClient = new FakeRestClient(false, List.of());
         LreWorkspaceSyncTask task = createTask(model, root -> List.of(), createZipCompressor(), restClient);
@@ -29,7 +29,7 @@ public class LreWorkspaceSyncTaskTest extends TestCase {
 
     public void testExecuteReturnsSuccessWhenNoScriptsFound() throws Exception {
         Path workspace = Files.createTempDirectory("lre-sync-no-scripts");
-        LreWorkspaceSyncModel model = createModel(workspace.toString());
+        LreWorkspaceSyncModel model = createModel(workspace.toString(), 50);
 
         FakeRestClient restClient = new FakeRestClient(true, List.of());
         LreWorkspaceSyncTask task = createTask(model, root -> List.of(), createZipCompressor(), restClient);
@@ -44,7 +44,7 @@ public class LreWorkspaceSyncTaskTest extends TestCase {
     public void testExecuteReturnsSuccessWhenAtLeastHalfUploadsSucceed() throws Exception {
         Path workspace = Files.createTempDirectory("lre-sync-success-rate");
         List<ScriptFolder> folders = createScriptFolders(workspace, "s1", "s2", "s3", "s4");
-        LreWorkspaceSyncModel model = createModel(workspace.toString());
+        LreWorkspaceSyncModel model = createModel(workspace.toString(), 50);
 
         FakeRestClient restClient = new FakeRestClient(true, Arrays.asList(101, 0, 102, 0));
         LreWorkspaceSyncTask task = createTask(model, root -> folders, createZipCompressor(), restClient);
@@ -59,7 +59,7 @@ public class LreWorkspaceSyncTaskTest extends TestCase {
     public void testExecuteStopsAfterFiveConsecutiveFailures() throws Exception {
         Path workspace = Files.createTempDirectory("lre-sync-five-failures");
         List<ScriptFolder> folders = createScriptFolders(workspace, "a", "b", "c", "d", "e", "f", "g");
-        LreWorkspaceSyncModel model = createModel(workspace.toString());
+        LreWorkspaceSyncModel model = createModel(workspace.toString(), 50);
 
         FakeRestClient restClient = new FakeRestClient(true, Arrays.asList(0, 0, 0, 0, 0, 111, 112));
         LreWorkspaceSyncTask task = createTask(model, root -> folders, createZipCompressor(), restClient);
@@ -69,6 +69,66 @@ public class LreWorkspaceSyncTaskTest extends TestCase {
         assertEquals(Result.FAILURE, result);
         assertEquals(5, restClient.uploadCallCount);
         assertTrue(restClient.logoutCalled);
+    }
+
+    public void testExecuteReturnsFailureWhenBelowConfiguredSuccessThreshold() throws Exception {
+        Path workspace = Files.createTempDirectory("lre-sync-threshold-fail");
+        List<ScriptFolder> folders = createScriptFolders(workspace, "s1", "s2", "s3", "s4");
+        LreWorkspaceSyncModel model = createModel(workspace.toString(), 80);
+
+        FakeRestClient restClient = new FakeRestClient(true, Arrays.asList(101, 0, 102, 0));
+        LreWorkspaceSyncTask task = createTask(model, root -> folders, createZipCompressor(), restClient);
+
+        Result result = task.execute();
+
+        assertEquals(Result.FAILURE, result);
+        assertTrue(restClient.logoutCalled);
+        assertEquals(4, restClient.uploadCallCount);
+    }
+
+    public void testExecuteReturnsSuccessWhenThresholdIsZero() throws Exception {
+        Path workspace = Files.createTempDirectory("lre-sync-threshold-zero");
+        List<ScriptFolder> folders = createScriptFolders(workspace, "s1", "s2", "s3", "s4");
+        LreWorkspaceSyncModel model = createModel(workspace.toString(), 0);
+
+        FakeRestClient restClient = new FakeRestClient(true, Arrays.asList(0, 0, 0, 0));
+        LreWorkspaceSyncTask task = createTask(model, root -> folders, createZipCompressor(), restClient);
+
+        Result result = task.execute();
+
+        assertEquals(Result.SUCCESS, result);
+        assertTrue(restClient.logoutCalled);
+        assertEquals(4, restClient.uploadCallCount);
+    }
+
+    public void testExecuteReturnsFailureWhenThresholdIsHundredAndAnyUploadFails() throws Exception {
+        Path workspace = Files.createTempDirectory("lre-sync-threshold-hundred");
+        List<ScriptFolder> folders = createScriptFolders(workspace, "s1", "s2", "s3", "s4");
+        LreWorkspaceSyncModel model = createModel(workspace.toString(), 100);
+
+        FakeRestClient restClient = new FakeRestClient(true, Arrays.asList(101, 102, 0, 103));
+        LreWorkspaceSyncTask task = createTask(model, root -> folders, createZipCompressor(), restClient);
+
+        Result result = task.execute();
+
+        assertEquals(Result.FAILURE, result);
+        assertTrue(restClient.logoutCalled);
+        assertEquals(4, restClient.uploadCallCount);
+    }
+
+    public void testExecuteInvalidThresholdFallsBackToFiftyPercent() throws Exception {
+        Path workspace = Files.createTempDirectory("lre-sync-threshold-invalid");
+        List<ScriptFolder> folders = createScriptFolders(workspace, "s1", "s2", "s3", "s4");
+        LreWorkspaceSyncModel model = createModel(workspace.toString(), 200);
+
+        FakeRestClient restClient = new FakeRestClient(true, Arrays.asList(101, 0, 102, 0));
+        LreWorkspaceSyncTask task = createTask(model, root -> folders, createZipCompressor(), restClient);
+
+        Result result = task.execute();
+
+        assertEquals(Result.SUCCESS, result);
+        assertTrue(restClient.logoutCalled);
+        assertEquals(4, restClient.uploadCallCount);
     }
 
     private LreWorkspaceSyncTask createTask(LreWorkspaceSyncModel model,
@@ -101,7 +161,7 @@ public class LreWorkspaceSyncTaskTest extends TestCase {
         return folders;
     }
 
-    private LreWorkspaceSyncModel createModel(String workspacePath) {
+    private LreWorkspaceSyncModel createModel(String workspacePath, int successThresholdPercent) {
         return new LreWorkspaceSyncModel(
                 "server?tenant=abc",
                 false,
@@ -114,6 +174,7 @@ public class LreWorkspaceSyncTaskTest extends TestCase {
                 "",
                 workspacePath,
                 true,
+                successThresholdPercent,
                 false,
                 true,
                 "desc"

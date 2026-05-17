@@ -113,6 +113,7 @@ public class LreTestRunClient {
             LogHelper.log("%s (TestID: %s, RunID: %s, TimeslotID: %s)", true,
                     LocalizationManager.getString("RunStarted"),
                     (Object) response.getTestID(), (Object) response.getID(), (Object) response.getTimeslotID());
+            LogHelper.log("lre_run_id=%s", true, (Object) response.getID());
 
             return response.getID();
         } catch (NumberFormatException | PcException | IOException ex ) {
@@ -158,6 +159,7 @@ public class LreTestRunClient {
                             (Object) response.getTestID(),
                             (Object) response.getID(),
                             (Object) response.getTimeslotID());
+                    LogHelper.log("lre_run_id=%s", true, (Object) response.getID());
                 }
                 return ret;
             }

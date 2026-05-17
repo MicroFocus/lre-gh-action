@@ -154,6 +154,7 @@ public class InputRetriever {
 
             // Get workspace sync-specific parameters
             boolean lre_runtime_only = getParameterBoolValue("lre_runtime_only", true);
+            int lre_workspace_sync_success_threshold = getParameterIntValue("lre_workspace_sync_success_threshold", 50);
 
             return new LreWorkspaceSyncModel(
                     common.lreServer,
@@ -167,6 +168,7 @@ public class InputRetriever {
                     common.lrePasswordProxy,
                     common.lreWorkspaceDir,
                     lre_runtime_only,
+                    lre_workspace_sync_success_threshold,
                     common.lreAuthenticateWithToken,
                     common.lreEnableStacktrace,
                     common.lreDescription);
@@ -255,6 +257,51 @@ public class InputRetriever {
         } else {
             return getParameterBoolValueFromEnvironment(parameterKey, defaultValue);
         }
+    }
+
+    private int getParameterIntValue(String parameterKey, int defaultValue) {
+        try {
+            if (useConfiguration) {
+                return getParameterIntValueFromConfig(parameterKey, defaultValue);
+            }
+            return getParameterIntValueFromEnvironment(parameterKey, defaultValue);
+        } catch (Exception ignored) {
+            return defaultValue;
+        }
+    }
+
+    private int getParameterIntValueFromEnvironment(String parameterKey, int defaultValue) {
+        String parameterValue = System.getenv(parameterKey);
+        if (parameterValue == null || parameterValue.trim().isEmpty()) {
+            return defaultValue;
+        }
+        try {
+            return Integer.parseInt(parameterValue.trim());
+        } catch (NumberFormatException ex) {
+            return defaultValue;
+        }
+    }
+
+    private int getParameterIntValueFromConfig(String parameterKey, int defaultValue) {
+        Object rawValue = config.opt(parameterKey);
+        if (rawValue == null) {
+            return defaultValue;
+        }
+        if (rawValue instanceof Number) {
+            return ((Number) rawValue).intValue();
+        }
+        if (rawValue instanceof String) {
+            String textValue = ((String) rawValue).trim();
+            if (textValue.isEmpty()) {
+                return defaultValue;
+            }
+            try {
+                return Integer.parseInt(textValue);
+            } catch (NumberFormatException ex) {
+                return defaultValue;
+            }
+        }
+        return defaultValue;
     }
 
     private boolean getParameterBoolValueFromEnvironment(String parameterKey,

@@ -4,6 +4,7 @@ import com.opentext.lre.actions.common.model.LreBaseModel;
 
 public final class LreWorkspaceSyncModel extends LreBaseModel {
     private final boolean runtimeOnly;
+    private final int workspaceSyncSuccessThresholdPercent;
 
     public LreWorkspaceSyncModel(String lreServerAndPort,
                                  boolean httpsProtocol,
@@ -16,6 +17,7 @@ public final class LreWorkspaceSyncModel extends LreBaseModel {
                                  String passwordProxy,
                                  String workspacePath,
                                  boolean runtimeOnly,
+                                 int workspaceSyncSuccessThresholdPercent,
                                  boolean authenticateWithToken,
                                  boolean enableStacktrace,
                                  String description) {
@@ -23,10 +25,15 @@ public final class LreWorkspaceSyncModel extends LreBaseModel {
               proxyOutURL, usernameProxy, passwordProxy, authenticateWithToken,
               enableStacktrace, workspacePath, description);
         this.runtimeOnly = runtimeOnly;
+        this.workspaceSyncSuccessThresholdPercent = workspaceSyncSuccessThresholdPercent;
     }
 
 
     public boolean isRuntimeOnly() {
         return runtimeOnly;
+    }
+
+    public int getWorkspaceSyncSuccessThresholdPercent() {
+        return workspaceSyncSuccessThresholdPercent;
     }
 }

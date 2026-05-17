@@ -62,6 +62,32 @@ function resolveWorkspaceAndOutputDirs(rawOutputDir, rawWorkspaceDir) {
   return { lreOutputDir: outputDir, lreWorkspaceDir: workspaceDir };
 }
 
+function extractRunId(text) {
+  const markerMatch = text.match(/lre_run_id=(\d+)/i);
+  if (markerMatch && markerMatch[1]) {
+    return markerMatch[1];
+  }
+
+  const runIdMatch = text.match(/RunID:\s*(\d+)/i);
+  if (runIdMatch && runIdMatch[1]) {
+    return runIdMatch[1];
+  }
+
+  return null;
+}
+
+function updateRunIdParseState(state, output) {
+  const parseTail = state.parseTail || '';
+  const combined = parseTail + output;
+  const foundRunId = extractRunId(combined);
+
+  return {
+    lreRunId: foundRunId || state.lreRunId || null,
+    // Keep a short tail so regex can still match when tokens are split across chunks.
+    parseTail: combined.slice(-200)
+  };
+}
+
 function buildConfig() {
   const lreAction = resolveAction(core.getInput('lre_action'));
   if (lreAction !== ACTION_EXECUTE_TEST && lreAction !== ACTION_WORKSPACE_SYNC) {
@@ -106,6 +132,8 @@ function buildConfig() {
   const lreSearchTimeslot = resolveBooleanInput(core.getInput('lre_search_timeslot'), false);
   const lreStatusBySla = resolveBooleanInput(core.getInput('lre_status_by_sla'), false);
   const lreRuntimeOnly = resolveBooleanInput(core.getInput('lre_runtime_only'), true);
+  const parsedLreWorkspaceSyncSuccessThreshold = parseNonNegativeInt(core.getInput('lre_workspace_sync_success_threshold'), 50);
+  const lreWorkspaceSyncSuccessThreshold = parsedLreWorkspaceSyncSuccessThreshold <= 100 ? parsedLreWorkspaceSyncSuccessThreshold : 50;
   const lreEnableStacktrace = resolveBooleanInput(core.getInput('lre_enable_stacktrace'), false);
 
   const { lreOutputDir, lreWorkspaceDir } = resolveWorkspaceAndOutputDirs(
@@ -134,6 +162,7 @@ function buildConfig() {
     lre_output_dir: lreOutputDir,
     lre_workspace_dir: lreWorkspaceDir,
     lre_runtime_only: lreRuntimeOnly,
+    lre_workspace_sync_success_threshold: lreWorkspaceSyncSuccessThreshold,
     lre_enable_stacktrace: lreEnableStacktrace
   };
 }
@@ -149,21 +178,20 @@ function runJavaProcess(jarFilePath, configFilePath) {
     ];
 
     const javaProcess = spawn('java', javaAppArgs, { cwd: __dirname });
-    let lreRunId = null;
+    let parseState = { lreRunId: null, parseTail: '' };
 
     javaProcess.on('error', (err) => reject(new Error(`Failed to start Java process: ${err.message}`)));
 
     javaProcess.stdout.on('data', (data) => {
       const output = data.toString();
       console.log(output);
-      const match = output.match(/lre_run_id=(\S+)/);
-      if (match && match[1]) {
-        lreRunId = match[1];
-      }
+      parseState = updateRunIdParseState(parseState, output);
     });
 
     javaProcess.stderr.on('data', (data) => {
-      console.error(data.toString());
+      const output = data.toString();
+      console.error(output);
+      parseState = updateRunIdParseState(parseState, output);
     });
 
     javaProcess.on('close', (code) => {
@@ -172,7 +200,7 @@ function runJavaProcess(jarFilePath, configFilePath) {
         return;
       }
 
-      resolve(lreRunId);
+      resolve(parseState.lreRunId);
     });
   });
 }
@@ -200,4 +228,11 @@ async function run() {
   }
 }
 
-run();
+if (require.main === module) {
+  run();
+}
+
+module.exports = {
+  extractRunId,
+  updateRunIdParseState
+};

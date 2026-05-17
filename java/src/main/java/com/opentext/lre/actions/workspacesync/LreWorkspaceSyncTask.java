@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Objects;
 
 public final class LreWorkspaceSyncTask {
+    private static final int DEFAULT_SUCCESS_THRESHOLD_PERCENT = 50;
+
     interface ScriptScanner {
         List<ScriptFolder> findScriptFolders(Path workspaceRoot) throws IOException;
     }
@@ -153,19 +155,34 @@ public final class LreWorkspaceSyncTask {
             }
         }
 
-        // Determine final result based on failure rate
+        // Determine final result based on configured success threshold.
         int successfulUploads = totalScripts - totalFailures;
-        double successRate = (double) successfulUploads / totalScripts;
+        int successThresholdPercent = resolveSuccessThresholdPercent();
+        double successRatePercent = (double) successfulUploads * 100 / totalScripts;
 
-        if (successRate >= 0.5) {
+        if (successThresholdPercent == 0 || successRatePercent >= successThresholdPercent) {
             LogHelper.log("Upload process completed: %d out of %d scripts uploaded successfully.",
                     true, successfulUploads, totalScripts);
             return Result.SUCCESS;
         } else {
-            LogHelper.log("Upload process failed: Only %d out of %d scripts uploaded successfully (less than 50%%).",
-                    true, successfulUploads, totalScripts);
+            LogHelper.log(
+                    "Upload process failed: Only %d out of %d scripts uploaded successfully (required at least %d%% success).",
+                    true, successfulUploads, totalScripts, successThresholdPercent);
             return Result.FAILURE;
         }
+    }
+
+    private int resolveSuccessThresholdPercent() {
+        int configuredThreshold = model.getWorkspaceSyncSuccessThresholdPercent();
+        if (configuredThreshold < 0 || configuredThreshold > 100) {
+            LogHelper.log(
+                    "Invalid lre_workspace_sync_success_threshold value '%d'. Falling back to default %d%%.",
+                    true,
+                    configuredThreshold,
+                    DEFAULT_SUCCESS_THRESHOLD_PERCENT);
+            return DEFAULT_SUCCESS_THRESHOLD_PERCENT;
+        }
+        return configuredThreshold;
     }
 
     private Result uploadFolder(WorkspaceRestClient restClient, ScriptFolder folder) {

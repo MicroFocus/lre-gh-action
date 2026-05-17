@@ -36,7 +36,7 @@ jobs:
       - name: Extract CustomScripts.zip
         run: |
           unzip -o "${{ github.workspace }}/scripts/CustomScripts.zip" -d "${{ github.workspace }}/scripts/CustomScripts"
-      - name: Run My GitHub Action
+      - name: Run My WorkspaceSync GitHub Action
         uses: MicroFocus/lre-gh-action@v1.0.4
         with:
           lre_action: WorkspaceSync 

@@ -30,7 +30,7 @@ This repository is used to build and maintain OpenText Enterprise Performance En
 3. Zips each folder identified as script and uploads it to OpenText Enterprise Performance Engineering project
 4. Failure handling:
     * If 5 consecutive script uploads fail, the action is interrupted with failure
-    * If at least 50% of the scripts found in the workspace are uploaded successfully, the action reports success
+    * A configurable success threshold (`lre_workspace_sync_success_threshold`) decides pass/fail based on upload success percentage
     * Otherwise, the action reports failure
 5. Writes logs for each upload in console and in workspace
 6. Exits with a deterministic status code suitable for pipeline gating
@@ -90,6 +90,7 @@ The action supports two operation modes:
 | **lre_status_by_sla** | Report success based on SLA (`true` / `false`) | ExecuteLreTest | false |
 | **lre_output_dir** | Directory to read the checkout folder and to save results (use `${{ github.workspace }}`) | ExecuteLreTest | ./ |
 | **lre_runtime_only** | Scripts upload mode (Runtime files only for true, All files for false) (`true` / `false`) | WorkspaceSync | true |
+| **lre_workspace_sync_success_threshold** | WorkspaceSync success threshold in percent (`0`-`100`). `0` never fails on upload ratio, `100` requires all uploads to succeed. Out-of-range values fall back to `50` | WorkspaceSync | 50 |
 | **lre_enable_stacktrace** | Print stacktrace on errors (`true` / `false`) | Both | false |
 
 ### WorkspaceSync behavior
@@ -98,7 +99,7 @@ When `lre_action` is set to `WorkspaceSync`, the action scans `lre_workspace_dir
 
 Each detected script folder is zipped and uploaded to the matching subject path in OpenText Enterprise Performance Engineering, preserving the relative folder structure under `Subject`.
 
-The sync result is considered successful when at least 50% of script uploads succeed. The process also stops early after 5 consecutive upload failures.
+The sync result is considered successful when the successful upload percentage is greater than or equal to `lre_workspace_sync_success_threshold` (default `50`). A value of `0` always passes the ratio check, and `100` requires all uploads to succeed. Out-of-range values fall back to `50`. The process also stops early after 5 consecutive upload failures.
 
 Directory resolution note: if `lre_output_dir` and `lre_workspace_dir` are both omitted, both resolve to `./`.
 
@@ -113,6 +114,13 @@ Directory resolution note: if `lre_output_dir` and `lre_workspace_dir` are both 
 These directories **must be writable**.
 
 ---
+
+## Release History
+
+| Version | Date | Highlights |
+|---|---|---|
+| **1.0.5** | 2026-05-17 | - Added `lre_workspace_sync_success_threshold` for `WorkspaceSync` (`0`-`100`, fallback to `50`)<br>- `WorkspaceSync` now passes/fails based on the configured upload success percentage<br>- Improved `lre_run_id` availability for `ExecuteLreTest` outputs in workflow steps |
+| **1.0.4** | Previous release | - Baseline behavior before the new `WorkspaceSync` threshold and `lre_run_id` output reliability improvements |
 
 ## Examples
 
@@ -149,7 +157,7 @@ jobs:
           node-version: '25'
 
       - name: Use GitHub Action
-        uses: MicroFocus/lre-gh-action@v1.0.4
+        uses: MicroFocus/lre-gh-action@v1.0.5
         with:
           lre_action: ExecuteLreTest
           lre_description: running new yaml test
@@ -227,7 +235,7 @@ jobs:
           node-version: '25'
 
       - name: Use My GitHub Action
-        uses: MicroFocus/lre-gh-action@v1.0.4
+        uses: MicroFocus/lre-gh-action@v1.0.5
         with:
           lre_action: ExecuteLreTest
           lre_description: running new yaml test
@@ -283,7 +291,7 @@ jobs:
           node-version: '25'
 
       - name: Synchronize scripts
-        uses: MicroFocus/lre-gh-action@v1.0.4
+        uses: MicroFocus/lre-gh-action@v1.0.5
         with:
           lre_action: WorkspaceSync
           lre_description: synchronize scripts from workspace
@@ -294,6 +302,7 @@ jobs:
           lre_project: proj1
           lre_workspace_dir: ${{ github.workspace }}/scripts
           lre_runtime_only: true
+          lre_workspace_sync_success_threshold: 70
           lre_enable_stacktrace: true
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7

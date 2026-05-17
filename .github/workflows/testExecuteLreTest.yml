@@ -33,7 +33,8 @@ jobs:
           node-version: '25'
       - name: List _actions directory contents
         run: 'ls -R /home/runner/work/_actions'
-      - name: Run My GitHub Action
+      - name: Run My ExecuteLreTest GitHub Action
+        id: lre_action
         uses: MicroFocus/lre-gh-action@v1.0.4
         with:
           lre_action: ExecuteLreTest
@@ -53,6 +54,8 @@ jobs:
           lre_status_by_sla: false
           lre_output_dir: ${{ github.workspace }}
           lre_enable_stacktrace: true
+      - name: Print run id output
+        run: echo "lre_run_id=${{ steps.lre_action.outputs.lre_run_id }}"
       - name: List workspace directory contents
         run: 'ls -R ${{ github.workspace }}/LreResult'
       - name: Upload build artifacts

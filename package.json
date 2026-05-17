@@ -1,10 +1,11 @@
 {
   "name": "lre-gh-action",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "GitHub Action for OpenText Enterprise Performance Engineering",
   "main": "src/index.js",
   "scripts": {
-    "test": "node src/index.js",
+    "test": "npm run test:unit",
+    "test:unit": "node tests/run-id-parser.test.js",
     "copyLicense": "node -e \"require('fs-extra').copySync('LICENSE', 'bundle/LICENSE')\"",
     "copyJarToBundle": "node -e \"const fs=require('fs');const path=require('path');const dir=path.join('java','target');const files=fs.readdirSync(dir);const jar=files.find(f=>f.endsWith('-jar-with-dependencies.jar'));if(!jar){throw new Error('No *-jar-with-dependencies.jar found in java/target');}fs.mkdirSync('bundle',{recursive:true});fs.copyFileSync(path.join(dir,jar),path.join('bundle',jar));console.log('Copied',jar,'to bundle');\"",
     "build": "ncc build src/index.js --license license -o bundle && npm run copyLicense",
