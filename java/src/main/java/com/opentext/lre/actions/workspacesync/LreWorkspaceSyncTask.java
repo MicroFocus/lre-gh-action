@@ -254,10 +254,17 @@ public final class LreWorkspaceSyncTask {
             return List.of();
         }
 
+        Path workspacePath = Paths.get(model.getWorkspace()).toAbsolutePath();
+
         List<ScriptFolder> selectedFolders = new ArrayList<>();
         for (ScriptFolder folder : scriptFolders) {
-            String folderPath = normalizeRelativePath(folder.getRelativePath().toString());
-            if (isFolderAffectedByChangedFiles(folderPath, changedFiles)) {
+            // getRelativePath() returns the PARENT path (designed for LRE subject-path building),
+            // so we cannot use it directly for matching against git-diff changed file paths.
+            // Instead, compute the script folder's path relative to the workspace root
+            // directly from fullPath, which always points to the script folder itself.
+            String scriptFolderPath = normalizeRelativePath(
+                    workspacePath.relativize(folder.getFullPath().toAbsolutePath()).toString());
+            if (isFolderAffectedByChangedFiles(scriptFolderPath, changedFiles)) {
                 selectedFolders.add(folder);
             }
         }
