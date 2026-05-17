@@ -262,10 +262,11 @@ function enrichWorkspaceSyncConfig(config) {
        return config;
      }
 
-     config.lre_workspace_sync_changes_determined = true;
-     config.lre_workspace_sync_changed_files = changedFiles;
-     config.lre_workspace_sync_deleted_files = deletedFiles;
-     core.info(`WorkspaceSync: performing incremental sync with ${changedFiles.length} changed file(s), ${deletedFiles.length} deleted file(s) found using ${diffRange.source}.`);
+      config.lre_workspace_sync_incremental = true;
+      config.lre_workspace_sync_changes_determined = true;
+      config.lre_workspace_sync_changed_files = changedFiles;
+      config.lre_workspace_sync_deleted_files = deletedFiles;
+      core.info(`WorkspaceSync: performing incremental sync with ${changedFiles.length} changed file(s), ${deletedFiles.length} deleted file(s) found using ${diffRange.source}.`);
      return config;
     } catch (error) {
       const hint = error.message && error.message.includes('git diff')
