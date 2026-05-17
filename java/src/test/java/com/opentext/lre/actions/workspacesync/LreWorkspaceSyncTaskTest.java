@@ -131,6 +131,124 @@ public class LreWorkspaceSyncTaskTest extends TestCase {
         assertEquals(4, restClient.uploadCallCount);
     }
 
+    public void testExecuteIncrementalSyncUploadsOnlyAffectedScripts() throws Exception {
+        Path workspace = Files.createTempDirectory("lre-sync-incremental-filter");
+        List<ScriptFolder> folders = createScriptFolders(workspace, "s1", "s2", "s3");
+        LreWorkspaceSyncModel model = createModel(
+                workspace.toString(),
+                50,
+                true,
+                true,
+                List.of("s2/script.usr", "s2/data.csv")
+        );
+
+        FakeRestClient restClient = new FakeRestClient(true, List.of(101));
+        LreWorkspaceSyncTask task = createTask(model, root -> folders, createZipCompressor(), restClient);
+
+        Result result = task.execute();
+
+        assertEquals(Result.SUCCESS, result);
+        assertTrue(restClient.logoutCalled);
+        assertEquals(1, restClient.uploadCallCount);
+    }
+
+    public void testExecuteIncrementalSyncReturnsSuccessWhenNoChangedScripts() throws Exception {
+        Path workspace = Files.createTempDirectory("lre-sync-incremental-none");
+        List<ScriptFolder> folders = createScriptFolders(workspace, "s1", "s2");
+        LreWorkspaceSyncModel model = createModel(
+                workspace.toString(),
+                50,
+                true,
+                true,
+                List.of()
+        );
+
+        FakeRestClient restClient = new FakeRestClient(true, List.of());
+        LreWorkspaceSyncTask task = createTask(model, root -> folders, createZipCompressor(), restClient);
+
+        Result result = task.execute();
+
+        assertEquals(Result.SUCCESS, result);
+        assertTrue(restClient.logoutCalled);
+        assertEquals(0, restClient.uploadCallCount);
+    }
+
+    public void testExecuteIncrementalSyncFallsBackToFullSyncWhenChangesNotDetermined() throws Exception {
+        Path workspace = Files.createTempDirectory("lre-sync-incremental-fallback");
+        List<ScriptFolder> folders = createScriptFolders(workspace, "s1", "s2", "s3", "s4");
+        LreWorkspaceSyncModel model = createModel(
+                workspace.toString(),
+                50,
+                true,
+                false,
+                List.of()
+        );
+
+        FakeRestClient restClient = new FakeRestClient(true, Arrays.asList(101, 102, 103, 104));
+        LreWorkspaceSyncTask task = createTask(model, root -> folders, createZipCompressor(), restClient);
+
+        Result result = task.execute();
+
+        assertEquals(Result.SUCCESS, result);
+        assertTrue(restClient.logoutCalled);
+        assertEquals(4, restClient.uploadCallCount);
+    }
+
+    public void testExecuteIncrementalSyncDeletesRemovedScriptsWhenEnabled() throws Exception {
+        Path workspace = Files.createTempDirectory("lre-sync-incremental-delete");
+        List<ScriptFolder> folders = createScriptFolders(workspace, "s2");
+        LreWorkspaceSyncModel model = createModel(
+                workspace.toString(),
+                50,
+                true,
+                true,
+                true,
+                List.of("s2/script.usr"),
+                List.of("s1/script.usr")
+        );
+
+        List<LreWorkspaceSyncTask.WorkspaceScriptInfo> remoteScripts = List.of(
+                new LreWorkspaceSyncTask.WorkspaceScriptInfo(701, "s1", "Subject")
+        );
+        FakeRestClient restClient = new FakeRestClient(true, List.of(101), remoteScripts);
+        LreWorkspaceSyncTask task = createTask(model, root -> folders, createZipCompressor(), restClient);
+
+        Result result = task.execute();
+
+        assertEquals(Result.SUCCESS, result);
+        assertTrue(restClient.logoutCalled);
+        assertEquals(1, restClient.uploadCallCount);
+        assertEquals(1, restClient.deleteCallCount);
+        assertEquals(701, restClient.deletedScriptIds.get(0).intValue());
+    }
+
+    public void testExecuteIncrementalSyncDoesNotDeleteRemovedScriptsWhenDisabled() throws Exception {
+        Path workspace = Files.createTempDirectory("lre-sync-incremental-delete-disabled");
+        List<ScriptFolder> folders = createScriptFolders(workspace, "s2");
+        LreWorkspaceSyncModel model = createModel(
+                workspace.toString(),
+                50,
+                true,
+                true,
+                false,
+                List.of("s2/script.usr"),
+                List.of("s1/script.usr")
+        );
+
+        List<LreWorkspaceSyncTask.WorkspaceScriptInfo> remoteScripts = List.of(
+                new LreWorkspaceSyncTask.WorkspaceScriptInfo(701, "s1", "Subject")
+        );
+        FakeRestClient restClient = new FakeRestClient(true, List.of(101), remoteScripts);
+        LreWorkspaceSyncTask task = createTask(model, root -> folders, createZipCompressor(), restClient);
+
+        Result result = task.execute();
+
+        assertEquals(Result.SUCCESS, result);
+        assertTrue(restClient.logoutCalled);
+        assertEquals(1, restClient.uploadCallCount);
+        assertEquals(0, restClient.deleteCallCount);
+    }
+
     private LreWorkspaceSyncTask createTask(LreWorkspaceSyncModel model,
                                             LreWorkspaceSyncTask.ScriptScanner scanner,
                                             LreWorkspaceSyncTask.FolderCompressor compressor,
@@ -162,6 +280,30 @@ public class LreWorkspaceSyncTaskTest extends TestCase {
     }
 
     private LreWorkspaceSyncModel createModel(String workspacePath, int successThresholdPercent) {
+        return createModel(workspacePath, successThresholdPercent, false, false, false, List.of(), List.of());
+    }
+
+    private LreWorkspaceSyncModel createModel(String workspacePath,
+                                              int successThresholdPercent,
+                                              boolean incrementalSync,
+                                              boolean changesDetermined,
+                                              List<String> changedFiles) {
+        return createModel(workspacePath,
+                successThresholdPercent,
+                incrementalSync,
+                changesDetermined,
+                false,
+                changedFiles,
+                List.of());
+    }
+
+    private LreWorkspaceSyncModel createModel(String workspacePath,
+                                              int successThresholdPercent,
+                                              boolean incrementalSync,
+                                              boolean changesDetermined,
+                                              boolean deleteRemovedScripts,
+                                              List<String> changedFiles,
+                                              List<String> deletedFiles) {
         return new LreWorkspaceSyncModel(
                 "server?tenant=abc",
                 false,
@@ -175,6 +317,11 @@ public class LreWorkspaceSyncTaskTest extends TestCase {
                 workspacePath,
                 true,
                 successThresholdPercent,
+                incrementalSync,
+                deleteRemovedScripts,
+                changesDetermined,
+                changedFiles,
+                deletedFiles,
                 false,
                 true,
                 "desc"
@@ -184,14 +331,26 @@ public class LreWorkspaceSyncTaskTest extends TestCase {
     private static final class FakeRestClient implements LreWorkspaceSyncTask.WorkspaceRestClient {
         private final boolean authResult;
         private final Queue<Integer> uploadResults;
+        private final List<LreWorkspaceSyncTask.WorkspaceScriptInfo> remoteScripts;
         private boolean logoutCalled;
         private int uploadCallCount;
+        private int deleteCallCount;
+        private final List<Integer> deletedScriptIds;
 
         private FakeRestClient(boolean authResult, List<Integer> uploadResults) {
+            this(authResult, uploadResults, List.of());
+        }
+
+        private FakeRestClient(boolean authResult,
+                               List<Integer> uploadResults,
+                               List<LreWorkspaceSyncTask.WorkspaceScriptInfo> remoteScripts) {
             this.authResult = authResult;
             this.uploadResults = new ArrayDeque<>(uploadResults);
+            this.remoteScripts = new ArrayList<>(remoteScripts);
             this.logoutCalled = false;
             this.uploadCallCount = 0;
+            this.deleteCallCount = 0;
+            this.deletedScriptIds = new ArrayList<>();
         }
 
         @Override
@@ -212,6 +371,17 @@ public class LreWorkspaceSyncTaskTest extends TestCase {
                 return 0;
             }
             return uploadResults.remove();
+        }
+
+        @Override
+        public List<LreWorkspaceSyncTask.WorkspaceScriptInfo> listScripts() {
+            return new ArrayList<>(remoteScripts);
+        }
+
+        @Override
+        public void deleteScript(int scriptId) {
+            deleteCallCount++;
+            deletedScriptIds.add(scriptId);
         }
     }
 }

@@ -103,10 +103,18 @@ inputs:
     description: 'WorkspaceSync only. If true upload runtime files only, if false upload all files'
     required: false
     default: 'true'
-  lre_workspace_sync_success_threshold:
-    description: 'WorkspaceSync only. Required successful upload percentage (0-100). Out-of-range values fall back to 50'
+   lre_workspace_sync_success_threshold:
+     description: 'WorkspaceSync only. Required successful upload percentage (0-100). Out-of-range values fall back to 50'
+     required: false
+     default: '50'
+   lre_workspace_sync_base_sha:
+    description: 'WorkspaceSync only. Optional explicit base commit SHA used to compute changed files for incremental sync'
     required: false
-    default: '50'
+    default: ''
+  lre_workspace_sync_delete_removed_scripts:
+    description: 'WorkspaceSync only. If true, incremental sync also deletes scripts in LRE when their script folders were removed from the repository. Ignored when incremental context cannot be determined'
+    required: false
+    default: 'false'
   lre_enable_stacktrace:
     description: 'if set to true, it will show stack of exception when error occurs'
     required: false

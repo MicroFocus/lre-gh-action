@@ -3,10 +3,14 @@ package com.opentext.lre.actions.common.helpers;
 import com.microfocus.adm.performancecenter.plugins.common.pcentities.PostRunAction;
 import com.opentext.lre.actions.runtest.LreTestRunModel;
 import com.opentext.lre.actions.workspacesync.LreWorkspaceSyncModel;
+import org.json.JSONArray;
 import org.json.JSONObject;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 public class InputRetriever {
     private static final String DEFAULT_LRE_ACTION = "ExecuteLreTest";
@@ -155,6 +159,11 @@ public class InputRetriever {
             // Get workspace sync-specific parameters
             boolean lre_runtime_only = getParameterBoolValue("lre_runtime_only", true);
             int lre_workspace_sync_success_threshold = getParameterIntValue("lre_workspace_sync_success_threshold", 50);
+            boolean lre_workspace_sync_incremental = getParameterBoolValue("lre_workspace_sync_incremental", false);
+            boolean lre_workspace_sync_delete_removed_scripts = getParameterBoolValue("lre_workspace_sync_delete_removed_scripts", false);
+            boolean lre_workspace_sync_changes_determined = getParameterBoolValue("lre_workspace_sync_changes_determined", false);
+            List<String> lre_workspace_sync_changed_files = getParameterStringListValue("lre_workspace_sync_changed_files");
+            List<String> lre_workspace_sync_deleted_files = getParameterStringListValue("lre_workspace_sync_deleted_files");
 
             return new LreWorkspaceSyncModel(
                     common.lreServer,
@@ -169,6 +178,11 @@ public class InputRetriever {
                     common.lreWorkspaceDir,
                     lre_runtime_only,
                     lre_workspace_sync_success_threshold,
+                    lre_workspace_sync_incremental,
+                    lre_workspace_sync_delete_removed_scripts,
+                    lre_workspace_sync_changes_determined,
+                    lre_workspace_sync_changed_files,
+                    lre_workspace_sync_deleted_files,
                     common.lreAuthenticateWithToken,
                     common.lreEnableStacktrace,
                     common.lreDescription);
@@ -302,6 +316,58 @@ public class InputRetriever {
             }
         }
         return defaultValue;
+    }
+
+    private List<String> getParameterStringListValue(String parameterKey) {
+        if (useConfiguration) {
+            return getParameterStringListValueFromConfig(parameterKey);
+        }
+        return getParameterStringListValueFromEnvironment(parameterKey);
+    }
+
+    private List<String> getParameterStringListValueFromConfig(String parameterKey) {
+        Object rawValue = config.opt(parameterKey);
+        if (rawValue == null) {
+            return List.of();
+        }
+
+        if (rawValue instanceof JSONArray) {
+            JSONArray array = (JSONArray) rawValue;
+            List<String> values = new ArrayList<>();
+            for (int i = 0; i < array.length(); i++) {
+                String item = array.optString(i, "").trim();
+                if (!item.isEmpty()) {
+                    values.add(item);
+                }
+            }
+            return values;
+        }
+
+        if (rawValue instanceof String) {
+            return parseStringList((String) rawValue);
+        }
+
+        return List.of();
+    }
+
+    private List<String> getParameterStringListValueFromEnvironment(String parameterKey) {
+        String rawValue = System.getenv(parameterKey);
+        if (rawValue == null || rawValue.trim().isEmpty()) {
+            return List.of();
+        }
+        return parseStringList(rawValue);
+    }
+
+    private List<String> parseStringList(String rawValue) {
+        String[] parts = rawValue.split("[\\r\\n,]+");
+        List<String> values = new ArrayList<>();
+        for (String part : parts) {
+            String trimmed = part.trim();
+            if (!trimmed.isEmpty()) {
+                values.add(trimmed);
+            }
+        }
+        return values;
     }
 
     private boolean getParameterBoolValueFromEnvironment(String parameterKey,

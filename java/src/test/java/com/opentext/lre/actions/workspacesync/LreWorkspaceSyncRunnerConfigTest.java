@@ -1,7 +1,10 @@
 package com.opentext.lre.actions.workspacesync;
 
 import junit.framework.TestCase;
+import org.json.JSONArray;
 import org.json.JSONObject;
+
+import java.util.List;
 
 public class LreWorkspaceSyncRunnerConfigTest extends TestCase {
 
@@ -25,6 +28,11 @@ public class LreWorkspaceSyncRunnerConfigTest extends TestCase {
         assertEquals("C:/ws", model.getWorkspace());
         assertTrue(model.isRuntimeOnly());
         assertEquals(50, model.getWorkspaceSyncSuccessThresholdPercent());
+        assertFalse(model.isWorkspaceSyncIncremental());
+        assertFalse(model.isWorkspaceSyncDeleteRemovedScripts());
+        assertFalse(model.isWorkspaceSyncChangesDetermined());
+        assertEquals(List.of(), model.getWorkspaceSyncChangedFiles());
+        assertEquals(List.of(), model.getWorkspaceSyncDeletedFiles());
         assertFalse(model.isAuthenticateWithToken());
         assertFalse(model.isEnableStacktrace());
         assertEquals("", model.getDescription());
@@ -45,6 +53,11 @@ public class LreWorkspaceSyncRunnerConfigTest extends TestCase {
                 .put("lre_workspace_dir", "C:/ws")
                 .put("lre_runtime_only", false)
                 .put("lre_workspace_sync_success_threshold", 70)
+                .put("lre_workspace_sync_incremental", true)
+                .put("lre_workspace_sync_delete_removed_scripts", true)
+                .put("lre_workspace_sync_changes_determined", true)
+                .put("lre_workspace_sync_changed_files", new JSONArray().put("scriptA/main.js").put("scriptB/script.usr"))
+                .put("lre_workspace_sync_deleted_files", new JSONArray().put("scriptZ/main.js"))
                 .put("lre_enable_stacktrace", true)
                 .put("lre_description", "sync");
 
@@ -57,6 +70,11 @@ public class LreWorkspaceSyncRunnerConfigTest extends TestCase {
         assertEquals("ppass", model.getPasswordProxy());
         assertFalse(model.isRuntimeOnly());
         assertEquals(70, model.getWorkspaceSyncSuccessThresholdPercent());
+        assertTrue(model.isWorkspaceSyncIncremental());
+        assertTrue(model.isWorkspaceSyncDeleteRemovedScripts());
+        assertTrue(model.isWorkspaceSyncChangesDetermined());
+        assertEquals(List.of("scriptA/main.js", "scriptB/script.usr"), model.getWorkspaceSyncChangedFiles());
+        assertEquals(List.of("scriptZ/main.js"), model.getWorkspaceSyncDeletedFiles());
         assertTrue(model.isEnableStacktrace());
         assertEquals("sync", model.getDescription());
     }

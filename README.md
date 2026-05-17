@@ -47,6 +47,23 @@ This repository is used to build and maintain OpenText Enterprise Performance En
 5. Network access to the OpenText Enterprise Performance Engineering server
 6. Valid OpenText Enterprise Performance Engineering credentials  (username/password or token).
 
+## Workflow Permissions
+
+This action only needs read access to repository contents.
+
+Minimum recommended permissions in your workflow:
+
+```yml
+permissions:
+  contents: read
+```
+
+Notes:
+
+- `contents: read` is required for `actions/checkout` and for incremental `WorkspaceSync` git-diff detection.
+- No repository write permission is required for the current action behavior (including incremental sync and optional deleted-script handling in LRE).
+- If your organization enforces restricted default token permissions, explicitly set the `permissions` block as shown above.
+
 ## Action Inputs
 
 The action supports two operation modes:
@@ -91,6 +108,8 @@ The action supports two operation modes:
 | **lre_output_dir** | Directory to read the checkout folder and to save results (use `${{ github.workspace }}`) | ExecuteLreTest | ./ |
 | **lre_runtime_only** | Scripts upload mode (Runtime files only for true, All files for false) (`true` / `false`) | WorkspaceSync | true |
 | **lre_workspace_sync_success_threshold** | WorkspaceSync success threshold in percent (`0`-`100`). `0` never fails on upload ratio, `100` requires all uploads to succeed. Out-of-range values fall back to `50` | WorkspaceSync | 50 |
+| **lre_workspace_sync_base_sha** | WorkspaceSync only. Optional explicit base commit SHA used to compute changed files for incremental sync | WorkspaceSync | |
+| **lre_workspace_sync_delete_removed_scripts** | WorkspaceSync only. If `true`, incremental sync also deletes scripts in LRE when their script folders were removed from the repository. If `false` (default), deleted scripts are ignored | WorkspaceSync | false |
 | **lre_enable_stacktrace** | Print stacktrace on errors (`true` / `false`) | Both | false |
 
 ### WorkspaceSync behavior
@@ -100,6 +119,10 @@ When `lre_action` is set to `WorkspaceSync`, the action scans `lre_workspace_dir
 Each detected script folder is zipped and uploaded to the matching subject path in OpenText Enterprise Performance Engineering, preserving the relative folder structure under `Subject`.
 
 The sync result is considered successful when the successful upload percentage is greater than or equal to `lre_workspace_sync_success_threshold` (default `50`). A value of `0` always passes the ratio check, and `100` requires all uploads to succeed. Out-of-range values fall back to `50`. The process also stops early after 5 consecutive upload failures.
+
+**Incremental Sync Behavior**: The action automatically detects and uses incremental sync when possible. It uploads only script folders affected by git changes between the detected base and head commits (or between `lre_workspace_sync_base_sha` and the current commit when provided). If commit history or context cannot be determined, the action automatically falls back to full sync. For best incremental-sync detection, checkout the repository with enough history to include both base and head commits (for example `actions/checkout` with `fetch-depth: 0`).
+
+When `lre_workspace_sync_delete_removed_scripts` is enabled, the action attempts to delete matching scripts from the LRE project for script folders removed from the repository in the detected git diff range. By default (`false`), script deletions are ignored.
 
 Directory resolution note: if `lre_output_dir` and `lre_workspace_dir` are both omitted, both resolve to `./`.
 
@@ -119,6 +142,7 @@ These directories **must be writable**.
 
 | Version | Date | Highlights |
 |---|---|---|
+| **1.0.7** | 2026-05-17 | - Added optional handling of deleted scripts during incremental `WorkspaceSync` via `lre_workspace_sync_delete_removed_scripts`<br>- Incremental sync can now upload changed scripts and optionally delete removed scripts in one run |
 | **1.0.6** | 2026-05-17 | - Updated the GitHub Action runtime to `node24` to stay compatible with the current GitHub Actions runner deprecation schedule |
 | **1.0.5** | 2026-05-17 | - Added `lre_workspace_sync_success_threshold` for `WorkspaceSync` (`0`-`100`, fallback to `50`)<br>- `WorkspaceSync` now passes/fails based on the configured upload success percentage<br>- Improved `lre_run_id` availability for `ExecuteLreTest` outputs in workflow steps |
 | **1.0.4** | Previous release | - Baseline behavior before the new `WorkspaceSync` threshold and `lre_run_id` output reliability improvements |
@@ -139,6 +163,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     name: Start a performance test
+    permissions:
+      contents: read
     env:
       lre_username: ${{ secrets.LRE_USERNAME }}
       lre_password: ${{ secrets.LRE_PASSWORD }}
@@ -158,7 +184,7 @@ jobs:
           node-version: '25'
 
       - name: Use GitHub Action
-        uses: MicroFocus/lre-gh-action@v1.0.6
+        uses: MicroFocus/lre-gh-action@v1.0.7
         with:
           lre_action: ExecuteLreTest
           lre_description: running new yaml test
@@ -217,6 +243,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     name: Execute test
+    permissions:
+      contents: read
     env:
       lre_username: ${{ secrets.LRE_USERNAME }}
       lre_password: ${{ secrets.LRE_PASSWORD }}
@@ -236,7 +264,7 @@ jobs:
           node-version: '25'
 
       - name: Use My GitHub Action
-        uses: MicroFocus/lre-gh-action@v1.0.6
+        uses: MicroFocus/lre-gh-action@v1.0.7
         with:
           lre_action: ExecuteLreTest
           lre_description: running new yaml test
@@ -273,6 +301,8 @@ on:
 jobs:
   workspace-sync:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     env:
       lre_username: ${{ secrets.LRE_USERNAME }}
       lre_password: ${{ secrets.LRE_PASSWORD }}
@@ -291,20 +321,21 @@ jobs:
         with:
           node-version: '25'
 
-      - name: Synchronize scripts
-        uses: MicroFocus/lre-gh-action@v1.0.6
-        with:
-          lre_action: WorkspaceSync
-          lre_description: synchronize scripts from workspace
-          lre_server: myserver.mydomain.com/?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3
-          lre_https_protocol: true
-          lre_authenticate_with_token: false
-          lre_domain: DANIEL
-          lre_project: proj1
-          lre_workspace_dir: ${{ github.workspace }}/scripts
-          lre_runtime_only: true
-          lre_workspace_sync_success_threshold: 70
-          lre_enable_stacktrace: true
+       - name: Synchronize scripts
+         uses: MicroFocus/lre-gh-action@v1.0.7
+         with:
+           lre_action: WorkspaceSync
+           lre_description: synchronize scripts from workspace
+           lre_server: myserver.mydomain.com/?tenant=fa128c06-5436-413d-9cfa-9f04bb738df3
+           lre_https_protocol: true
+           lre_authenticate_with_token: false
+           lre_domain: DANIEL
+           lre_project: proj1
+           lre_workspace_dir: ${{ github.workspace }}/scripts
+           lre_runtime_only: true
+           lre_workspace_sync_success_threshold: 70
+           lre_workspace_sync_delete_removed_scripts: false
+           lre_enable_stacktrace: true
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
         with:

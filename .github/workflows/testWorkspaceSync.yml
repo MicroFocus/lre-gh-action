@@ -16,6 +16,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     name: Start syncing workspace with LRE
+    permissions:
+      contents: read
     env:
       lre_username: ${{ secrets.LRE_USERNAME }}
       lre_password: ${{ secrets.LRE_PASSWORD }}
@@ -37,7 +39,7 @@ jobs:
         run: |
           unzip -o "${{ github.workspace }}/scripts/CustomScripts.zip" -d "${{ github.workspace }}/scripts/CustomScripts"
       - name: Run My WorkspaceSync GitHub Action
-        uses: MicroFocus/lre-gh-action@v1.0.6
+        uses: MicroFocus/lre-gh-action@v1.0.7
         with:
           lre_action: WorkspaceSync 
           lre_description: Syncing scripts from workspace to LRE

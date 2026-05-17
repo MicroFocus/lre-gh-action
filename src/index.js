@@ -1,5 +1,6 @@
 const core = require('@actions/core');
-const { spawn } = require('child_process');
+const { spawn, execFileSync } = require('child_process');
+const fsSync = require('fs');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -86,6 +87,190 @@ function updateRunIdParseState(state, output) {
     // Keep a short tail so regex can still match when tokens are split across chunks.
     parseTail: combined.slice(-200)
   };
+}
+
+function toPosixPath(inputPath) {
+  return normalize(inputPath).replace(/\\/g, '/').replace(/^\.\//, '');
+}
+
+function isZeroSha(value) {
+  return /^0+$/.test(value || '');
+}
+
+function readGithubEventPayload() {
+  const eventPath = normalize(process.env.GITHUB_EVENT_PATH);
+  if (!eventPath) {
+    return null;
+  }
+
+  try {
+    const content = fsSync.readFileSync(eventPath, 'utf8');
+    return JSON.parse(content);
+  } catch (error) {
+    core.warning(`Failed to read GitHub event payload from ${eventPath}: ${error.message}`);
+    return null;
+  }
+}
+
+function resolveWorkspaceSyncDiffRange(baseShaInput, eventName, payload, githubSha) {
+  const explicitBaseSha = normalize(baseShaInput);
+  const resolvedHeadSha = normalize(githubSha);
+
+  if (explicitBaseSha) {
+    return {
+      baseSha: explicitBaseSha,
+      headSha: resolvedHeadSha || null,
+      source: 'lre_workspace_sync_base_sha'
+    };
+  }
+
+  if (!payload) {
+    return null;
+  }
+
+  if (eventName === 'push') {
+    const baseSha = normalize(payload.before);
+    const headSha = normalize(payload.after) || resolvedHeadSha;
+    if (!baseSha || isZeroSha(baseSha) || !headSha) {
+      return null;
+    }
+    return { baseSha, headSha, source: 'push event' };
+  }
+
+  if (eventName === 'pull_request' || eventName === 'pull_request_target') {
+    const baseSha = normalize(payload.pull_request && payload.pull_request.base && payload.pull_request.base.sha);
+    const headSha = normalize(payload.pull_request && payload.pull_request.head && payload.pull_request.head.sha)
+      || resolvedHeadSha;
+    if (!baseSha || !headSha) {
+      return null;
+    }
+    return { baseSha, headSha, source: `${eventName} event` };
+  }
+
+  return null;
+}
+
+function selectChangedFilesUnderWorkspace(changedFiles, repoRoot, workspaceDir) {
+  const normalizedRepoRoot = path.resolve(repoRoot);
+  const normalizedWorkspaceRoot = path.resolve(workspaceDir);
+  const workspaceRelativeRoot = toPosixPath(path.relative(normalizedRepoRoot, normalizedWorkspaceRoot));
+
+  if (workspaceRelativeRoot.startsWith('..') || path.isAbsolute(workspaceRelativeRoot)) {
+    return null;
+  }
+
+  const prefix = workspaceRelativeRoot ? `${workspaceRelativeRoot}/` : '';
+  const selected = new Set();
+
+  for (const changedFile of changedFiles) {
+    const normalizedChangedFile = toPosixPath(changedFile);
+    if (!normalizedChangedFile) {
+      continue;
+    }
+
+    if (!prefix) {
+      selected.add(normalizedChangedFile);
+      continue;
+    }
+
+    if (normalizedChangedFile === workspaceRelativeRoot || normalizedChangedFile.startsWith(prefix)) {
+      const workspaceRelativeFile = normalizedChangedFile.slice(prefix.length);
+      if (workspaceRelativeFile) {
+        selected.add(workspaceRelativeFile);
+      }
+    }
+  }
+
+  return Array.from(selected);
+}
+
+function resolveWorkspaceRelativeChangedFiles(diffRange, workspaceDir, repoRoot) {
+  const gitArgs = ['diff', '--name-only', diffRange.baseSha];
+  if (diffRange.headSha) {
+    gitArgs.push(diffRange.headSha);
+  }
+
+  const output = execFileSync('git', gitArgs, {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
+
+  const changedFiles = output
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return selectChangedFilesUnderWorkspace(changedFiles, repoRoot, workspaceDir);
+}
+
+function resolveWorkspaceRelativeDeletedFiles(diffRange, workspaceDir, repoRoot) {
+  const gitArgs = ['diff', '--diff-filter=D', '--name-only', diffRange.baseSha];
+  if (diffRange.headSha) {
+    gitArgs.push(diffRange.headSha);
+  }
+
+  const output = execFileSync('git', gitArgs, {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
+
+  const deletedFiles = output
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return selectChangedFilesUnderWorkspace(deletedFiles, repoRoot, workspaceDir);
+}
+
+function enrichWorkspaceSyncConfig(config) {
+   if (config.lre_action !== ACTION_WORKSPACE_SYNC) {
+     return config;
+   }
+
+   const deleteRemovedScripts = resolveBooleanInput(core.getInput('lre_workspace_sync_delete_removed_scripts'), false);
+   config.lre_workspace_sync_delete_removed_scripts = deleteRemovedScripts;
+   config.lre_workspace_sync_changes_determined = false;
+   config.lre_workspace_sync_changed_files = [];
+   config.lre_workspace_sync_deleted_files = [];
+
+   // Automatically attempt incremental sync based on available diff context
+   const payload = readGithubEventPayload();
+   const diffRange = resolveWorkspaceSyncDiffRange(
+     core.getInput('lre_workspace_sync_base_sha'),
+     normalize(process.env.GITHUB_EVENT_NAME),
+     payload,
+     process.env.GITHUB_SHA
+   );
+
+   if (!diffRange) {
+     core.info('WorkspaceSync: no incremental sync context available, performing full sync.');
+     return config;
+   }
+
+   try {
+     const changedFiles = resolveWorkspaceRelativeChangedFiles(diffRange, config.lre_workspace_dir, process.cwd());
+     const deletedFiles = resolveWorkspaceRelativeDeletedFiles(diffRange, config.lre_workspace_dir, process.cwd());
+     if (changedFiles === null) {
+       core.info('WorkspaceSync: workspace is outside the checked-out repository, falling back to full sync.');
+       return config;
+     }
+
+     if (deletedFiles === null) {
+       core.info('WorkspaceSync: workspace is outside the checked-out repository, falling back to full sync.');
+       return config;
+     }
+
+     config.lre_workspace_sync_changes_determined = true;
+     config.lre_workspace_sync_changed_files = changedFiles;
+     config.lre_workspace_sync_deleted_files = deletedFiles;
+     core.info(`WorkspaceSync: performing incremental sync with ${changedFiles.length} changed file(s), ${deletedFiles.length} deleted file(s) found using ${diffRange.source}.`);
+     return config;
+   } catch (error) {
+     core.warning(`WorkspaceSync: failed to compute changed files: ${error.message}. Falling back to full sync.`);
+     return config;
+   }
 }
 
 function buildConfig() {
@@ -207,7 +392,7 @@ function runJavaProcess(jarFilePath, configFilePath) {
 
 async function run() {
   try {
-    const config = buildConfig();
+    const config = enrichWorkspaceSyncConfig(buildConfig());
 
     // Write the configuration to a file
     const configFilePath = path.join(process.cwd(), 'config.json');
@@ -234,5 +419,7 @@ if (require.main === module) {
 
 module.exports = {
   extractRunId,
-  updateRunIdParseState
+  updateRunIdParseState,
+  resolveWorkspaceSyncDiffRange,
+  selectChangedFilesUnderWorkspace
 };

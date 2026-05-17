@@ -16,6 +16,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     name: Start a LRE load test
+    permissions:
+      contents: read
     env:
       lre_username: ${{ secrets.LRE_USERNAME }}
       lre_password: ${{ secrets.LRE_PASSWORD }}
@@ -35,7 +37,7 @@ jobs:
         run: 'ls -R /home/runner/work/_actions'
       - name: Run My ExecuteLreTest GitHub Action
         id: lre_action
-        uses: MicroFocus/lre-gh-action@v1.0.6
+        uses: MicroFocus/lre-gh-action@v1.0.7
         with:
           lre_action: ExecuteLreTest
           lre_description: running new yaml test

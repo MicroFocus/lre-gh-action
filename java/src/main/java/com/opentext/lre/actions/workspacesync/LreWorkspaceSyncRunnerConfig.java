@@ -1,6 +1,10 @@
 package com.opentext.lre.actions.workspacesync;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public final class LreWorkspaceSyncRunnerConfig {
     private LreWorkspaceSyncRunnerConfig() {
@@ -20,6 +24,11 @@ public final class LreWorkspaceSyncRunnerConfig {
         String workspacePath = requireString(json, "lre_workspace_dir");
         boolean runtimeOnly = json.optBoolean("lre_runtime_only", true);
         int workspaceSyncSuccessThresholdPercent = parseIntOrDefault(json.opt("lre_workspace_sync_success_threshold"), 50);
+        boolean workspaceSyncIncremental = json.optBoolean("lre_workspace_sync_incremental", false);
+        boolean workspaceSyncDeleteRemovedScripts = json.optBoolean("lre_workspace_sync_delete_removed_scripts", false);
+        boolean workspaceSyncChangesDetermined = json.optBoolean("lre_workspace_sync_changes_determined", false);
+        List<String> workspaceSyncChangedFiles = parseStringListOrEmpty(json.opt("lre_workspace_sync_changed_files"));
+        List<String> workspaceSyncDeletedFiles = parseStringListOrEmpty(json.opt("lre_workspace_sync_deleted_files"));
         boolean lreEnableStacktrace = json.optBoolean("lre_enable_stacktrace", false);
         String description = json.optString("lre_description", "");
 
@@ -36,9 +45,49 @@ public final class LreWorkspaceSyncRunnerConfig {
                 workspacePath,
                 runtimeOnly,
                 workspaceSyncSuccessThresholdPercent,
+                workspaceSyncIncremental,
+                workspaceSyncDeleteRemovedScripts,
+                workspaceSyncChangesDetermined,
+                workspaceSyncChangedFiles,
+                workspaceSyncDeletedFiles,
                 authenticateWithToken,
                 lreEnableStacktrace,
                 description);
+    }
+
+    private static List<String> parseStringListOrEmpty(Object value) {
+        List<String> result = new ArrayList<>();
+        if (value == null) {
+            return result;
+        }
+
+        if (value instanceof JSONArray) {
+            JSONArray array = (JSONArray) value;
+            for (int i = 0; i < array.length(); i++) {
+                String item = array.optString(i, "").trim();
+                if (!item.isEmpty()) {
+                    result.add(item);
+                }
+            }
+            return result;
+        }
+
+        if (value instanceof String) {
+            String textValue = ((String) value).trim();
+            if (textValue.isEmpty()) {
+                return result;
+            }
+
+            String[] items = textValue.split("[\\r\\n,]+");
+            for (String item : items) {
+                String trimmed = item.trim();
+                if (!trimmed.isEmpty()) {
+                    result.add(trimmed);
+                }
+            }
+        }
+
+        return result;
     }
 
     private static int parseIntOrDefault(Object value, int defaultValue) {
