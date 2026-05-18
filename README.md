@@ -140,6 +140,8 @@ Fallback summary:
 
 When `lre_workspace_sync_delete_removed_scripts` is enabled, the action attempts to delete matching scripts from the LRE project for script folders removed from the repository in the detected git diff range. By default (`false`), script deletions are ignored.
 
+**Important Note on File Deletions**: When files are deleted from within a script folder (e.g., a file within a `.jmx` or `.usr` folder is removed), this represents an **update to that script**, not a script deletion. The script folder itself still exists and is still recognized as a script. Script deletion only occurs when the entire script folder is removed from the repository, or when the folder no longer contains the markers that identify it as a script (e.g., the `.jmx` file is deleted from a JMeter script folder). In such cases, `lre_workspace_sync_delete_removed_scripts` will delete the corresponding script from the LRE project.
+
 Directory resolution note: if `lre_output_dir` and `lre_workspace_dir` are both omitted, both resolve to `./`.
 
 
@@ -323,6 +325,7 @@ jobs:
     env:
       lre_username: ${{ secrets.LRE_USERNAME }}
       lre_password: ${{ secrets.LRE_PASSWORD }}
+      GITHUB_TOKEN: ${{ github.token }}  # required for incremental sync to query last successful run
     steps:
       - name: Checkout code
         uses: actions/checkout@v6

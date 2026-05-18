@@ -290,6 +290,46 @@ function resolveWorkspaceRelativeDeletedFiles(diffRange, workspaceDir, repoRoot)
   return selectChangedFilesUnderWorkspace(deletedFiles, repoRoot, workspaceDir);
 }
 
+function resolveWorkspaceRelativeAddedFiles(diffRange, workspaceDir, repoRoot) {
+  const gitArgs = ['diff', '--diff-filter=A', '--name-only', diffRange.baseSha];
+  if (diffRange.headSha) {
+    gitArgs.push(diffRange.headSha);
+  }
+
+  const output = execFileSync('git', gitArgs, {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
+
+  const addedFiles = output
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return selectChangedFilesUnderWorkspace(addedFiles, repoRoot, workspaceDir);
+}
+
+function resolveWorkspaceRelativeUpdatedFiles(diffRange, workspaceDir, repoRoot) {
+  const gitArgs = ['diff', '--diff-filter=M', '--name-only', diffRange.baseSha];
+  if (diffRange.headSha) {
+    gitArgs.push(diffRange.headSha);
+  }
+
+  const output = execFileSync('git', gitArgs, {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
+
+  const updatedFiles = output
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return selectChangedFilesUnderWorkspace(updatedFiles, repoRoot, workspaceDir);
+}
+
 async function enrichWorkspaceSyncConfig(config) {
    if (config.lre_action !== ACTION_WORKSPACE_SYNC) {
      return config;
@@ -318,12 +358,12 @@ async function enrichWorkspaceSyncConfig(config) {
      const workflowRef = normalize(process.env.GITHUB_WORKFLOW_REF);
      const currentRunId = normalize(process.env.GITHUB_RUN_ID);
 
-     lastSuccessfulSha = await fetchLastSuccessfulRunBaseSha(token, repo, branch, workflowRef, currentRunId);
-     if (!lastSuccessfulSha) {
-       core.info('WorkspaceSync: could not determine last successful run commit. Ensure actions: read permission is granted. Performing full sync.');
-       return config;
-     }
-     core.info(`WorkspaceSync: using last successful run commit (${lastSuccessfulSha.substring(0, 8)}...) as incremental base.`);
+      lastSuccessfulSha = await fetchLastSuccessfulRunBaseSha(token, repo, branch, workflowRef, currentRunId);
+      if (!lastSuccessfulSha) {
+        core.info('WorkspaceSync: could not determine last successful run commit. Ensure actions: read permission is granted. Performing full sync.');
+        return config;
+      }
+      core.info(`WorkspaceSync: using last successful run commit ${lastSuccessfulSha} as incremental base.`);
    }
 
    const diffRange = resolveWorkspaceSyncDiffRange(
@@ -342,6 +382,9 @@ async function enrichWorkspaceSyncConfig(config) {
    try {
      const changedFiles = resolveWorkspaceRelativeChangedFiles(diffRange, config.lre_workspace_dir, process.cwd());
      const deletedFiles = resolveWorkspaceRelativeDeletedFiles(diffRange, config.lre_workspace_dir, process.cwd());
+     const addedFiles = resolveWorkspaceRelativeAddedFiles(diffRange, config.lre_workspace_dir, process.cwd());
+     const updatedFiles = resolveWorkspaceRelativeUpdatedFiles(diffRange, config.lre_workspace_dir, process.cwd());
+
      if (changedFiles === null) {
        core.info('WorkspaceSync: workspace is outside the checked-out repository, falling back to full sync.');
        return config;
@@ -356,7 +399,21 @@ async function enrichWorkspaceSyncConfig(config) {
       config.lre_workspace_sync_changes_determined = true;
       config.lre_workspace_sync_changed_files = changedFiles;
       config.lre_workspace_sync_deleted_files = deletedFiles;
-      core.info(`WorkspaceSync: performing incremental sync with ${changedFiles.length} changed file(s), ${deletedFiles.length} deleted file(s) found using ${diffRange.source}.`);
+
+      // Log detailed breakdown of file changes
+      const addedCount = (addedFiles && addedFiles.length) || 0;
+      const updatedCount = (updatedFiles && updatedFiles.length) || 0;
+      const deletedCount = deletedFiles.length;
+
+      let detailMsg = `WorkspaceSync: performing incremental sync with ${changedFiles.length} changed file(s) found using ${diffRange.source}`;
+      if (addedCount > 0 || updatedCount > 0 || deletedCount > 0) {
+        detailMsg += ` (${addedCount} added, ${updatedCount} updated, ${deletedCount} deleted)`;
+      }
+      if (deletedCount > 0) {
+        detailMsg += `. Note: file deletions within script folders represent script updates; scripts are only deleted when their folders stop being recognized as scripts.`;
+      }
+      core.info(detailMsg);
+
      return config;
     } catch (error) {
       const hint = error.message && error.message.includes('git diff')
