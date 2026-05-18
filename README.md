@@ -55,12 +55,15 @@ Minimum recommended permissions in your workflow:
 
 ```yml
 permissions:
-  contents: read
+  contents: read   # required for actions/checkout and git-diff detection
+  actions: read    # required for WorkspaceSync incremental sync since last successful build
 ```
 
 Notes:
 
-- `contents: read` is required for `actions/checkout` and for incremental `WorkspaceSync` git-diff detection.
+- `contents: read` is required for `actions/checkout` and for `git diff` used during incremental `WorkspaceSync`.
+- `actions: read` is required for `WorkspaceSync` to query the GitHub Actions API and determine the last successful run's commit SHA.
+- **Both permissions are required for incremental sync.** If either is missing, `WorkspaceSync` performs a full sync of all scripts.
 - No repository write permission is required for the current action behavior (including incremental sync and optional deleted-script handling in LRE).
 - If your organization enforces restricted default token permissions, explicitly set the `permissions` block as shown above.
 
@@ -120,7 +123,20 @@ Each detected script folder is zipped and uploaded to the matching subject path 
 
 The sync result is considered successful when the successful upload percentage is greater than or equal to `lre_workspace_sync_success_threshold` (default `50`). A value of `0` always passes the ratio check, and `100` requires all uploads to succeed. Out-of-range values fall back to `50`. The process also stops early after 5 consecutive upload failures.
 
-**Incremental Sync Behavior**: The action automatically detects and uses incremental sync when possible. It uploads only script folders affected by git changes between the detected base and head commits (or between `lre_workspace_sync_base_sha` and the current commit when provided). If commit history or context cannot be determined, the action automatically falls back to full sync. For best incremental-sync detection, checkout the repository with enough history to include both base and head commits (for example `actions/checkout` with `fetch-depth: 0`).
+**Incremental Sync Behavior**: The action automatically detects and uses incremental sync when possible. On `push` events, it queries the GitHub Actions REST API (using `GITHUB_TOKEN`, requires `actions: read` permission) to find the **last successful run's commit SHA** and uses it as the base for the diff. This ensures that if a previous build failed, all changes since the last *successful* sync are included in the next run — nothing is silently skipped.
+
+Both `actions: read` permission **and** `fetch-depth: 0` on the checkout step are required for incremental sync. If either condition is not met, the action performs a **full sync** of all scripts — there is no partial fallback.
+
+For pull request events, the PR base branch commit is used as the diff base, and only `fetch-depth: 0` is required. If no usable commit context can be determined, the action falls back to full sync.
+
+Fallback summary:
+
+| `actions: read` | `fetch-depth: 0` | Result |
+|---|---|---|
+| ✅ | ✅ | Incremental since **last successful build** |
+| ❌ | ✅ | **Full sync** |
+| ✅ | ❌ | **Full sync** (`git diff` fails on shallow clone) |
+| ❌ | ❌ | **Full sync** |
 
 When `lre_workspace_sync_delete_removed_scripts` is enabled, the action attempts to delete matching scripts from the LRE project for script folders removed from the repository in the detected git diff range. By default (`false`), script deletions are ignored.
 
@@ -302,7 +318,8 @@ jobs:
   workspace-sync:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: read   # required for checkout and git-diff detection
+      actions: read    # required for incremental sync since last successful build
     env:
       lre_username: ${{ secrets.LRE_USERNAME }}
       lre_password: ${{ secrets.LRE_PASSWORD }}

@@ -26,8 +26,13 @@ function runTests() {
   state = updateRunIdParseState(state, 'line on stderr: lre_run_id=555');
   assert.strictEqual(state.lreRunId, '555');
 
-  const pushRange = resolveWorkspaceSyncDiffRange('', 'push', { before: 'abc123', after: 'def456' }, 'def456');
-  assert.deepStrictEqual(pushRange, { baseSha: 'abc123', headSha: 'def456', source: 'push event' });
+  // Push without lastSuccessfulSha → null (full sync required; no payload.before fallback)
+  const pushRangeNoLastSuccess = resolveWorkspaceSyncDiffRange('', 'push', { before: 'abc123', after: 'def456' }, 'def456', null);
+  assert.strictEqual(pushRangeNoLastSuccess, null);
+
+  // Push with lastSuccessfulSha → uses it as the base
+  const pushRange = resolveWorkspaceSyncDiffRange('', 'push', { before: 'abc123', after: 'def456' }, 'def456', 'lastgood0');
+  assert.deepStrictEqual(pushRange, { baseSha: 'lastgood0', headSha: 'def456', source: 'last successful run' });
 
   const explicitRange = resolveWorkspaceSyncDiffRange('base999', 'workflow_dispatch', null, 'head888');
   assert.deepStrictEqual(explicitRange, {

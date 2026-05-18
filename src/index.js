@@ -3,6 +3,7 @@ const { spawn, execFileSync } = require('child_process');
 const fsSync = require('fs');
 const fs = require('fs').promises;
 const path = require('path');
+const https = require('https');
 
 const ACTION_EXECUTE_TEST = 'ExecuteLreTest';
 const ACTION_WORKSPACE_SYNC = 'WorkspaceSync';
@@ -112,7 +113,68 @@ function readGithubEventPayload() {
   }
 }
 
-function resolveWorkspaceSyncDiffRange(baseShaInput, eventName, payload, githubSha) {
+/**
+ * Queries the GitHub Actions REST API to find the head_sha of the most recent
+ * successful run of the current workflow on the current branch (excluding the
+ * current run). This is used as the incremental-sync base so that changes from
+ * a previously failed build are never silently skipped.
+ *
+ * Requires the GITHUB_TOKEN env var and the workflow to have `actions: read`
+ * permission. Returns null (silently) on any error so callers can fall back.
+ */
+function fetchLastSuccessfulRunBaseSha(token, repo, branch, workflowRef, currentRunId) {
+  return new Promise((resolve) => {
+    if (!token || !repo || !branch || !workflowRef) {
+      resolve(null);
+      return;
+    }
+
+    const workflowFileMatch = workflowRef.match(/\.github\/workflows\/([^@]+)/);
+    const workflowFile = workflowFileMatch && workflowFileMatch[1];
+    if (!workflowFile) {
+      resolve(null);
+      return;
+    }
+
+    const query = `status=success&branch=${encodeURIComponent(branch)}&per_page=5&exclude_pull_requests=true`;
+    const options = {
+      hostname: 'api.github.com',
+      path: `/repos/${repo}/actions/workflows/${encodeURIComponent(workflowFile)}/runs?${query}`,
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'lre-gh-action',
+        'X-GitHub-Api-Version': '2022-11-28'
+      }
+    };
+
+    const req = https.get(options, (res) => {
+      let body = '';
+      res.on('data', (chunk) => { body += chunk; });
+      res.on('end', () => {
+        if (res.statusCode !== 200) {
+          resolve(null);
+          return;
+        }
+        try {
+          const data = JSON.parse(body);
+          const runs = (data.workflow_runs || []);
+          // Exclude the current run (it's in-progress so won't appear in "success"
+          // results, but guard against edge cases like manual re-runs).
+          const lastSuccess = runs.find((r) => String(r.id) !== String(currentRunId));
+          resolve(lastSuccess ? normalize(lastSuccess.head_sha) : null);
+        } catch (_) {
+          resolve(null);
+        }
+      });
+    });
+
+    req.on('error', () => resolve(null));
+  });
+}
+
+function resolveWorkspaceSyncDiffRange(baseShaInput, eventName, payload, githubSha, lastSuccessfulSha) {
   const explicitBaseSha = normalize(baseShaInput);
   const resolvedHeadSha = normalize(githubSha);
 
@@ -129,12 +191,16 @@ function resolveWorkspaceSyncDiffRange(baseShaInput, eventName, payload, githubS
   }
 
   if (eventName === 'push') {
-    const baseSha = normalize(payload.before);
     const headSha = normalize(payload.after) || resolvedHeadSha;
-    if (!baseSha || isZeroSha(baseSha) || !headSha) {
+    if (!headSha) {
       return null;
     }
-    return { baseSha, headSha, source: 'push event' };
+    // lastSuccessfulSha is required for push events; if null the caller already
+    // performed a full sync before reaching here.
+    if (lastSuccessfulSha && !isZeroSha(lastSuccessfulSha)) {
+      return { baseSha: lastSuccessfulSha, headSha, source: 'last successful run' };
+    }
+    return null;
   }
 
   if (eventName === 'pull_request' || eventName === 'pull_request_target') {
@@ -224,7 +290,7 @@ function resolveWorkspaceRelativeDeletedFiles(diffRange, workspaceDir, repoRoot)
   return selectChangedFilesUnderWorkspace(deletedFiles, repoRoot, workspaceDir);
 }
 
-function enrichWorkspaceSyncConfig(config) {
+async function enrichWorkspaceSyncConfig(config) {
    if (config.lre_action !== ACTION_WORKSPACE_SYNC) {
      return config;
    }
@@ -235,13 +301,37 @@ function enrichWorkspaceSyncConfig(config) {
    config.lre_workspace_sync_changed_files = [];
    config.lre_workspace_sync_deleted_files = [];
 
-   // Automatically attempt incremental sync based on available diff context
+   // Automatically attempt incremental sync based on available diff context.
    const payload = readGithubEventPayload();
+   const eventName = normalize(process.env.GITHUB_EVENT_NAME);
+
+   const explicitBaseSha = normalize(core.getInput('lre_workspace_sync_base_sha'));
+
+   // For push events, the last successful run's commit SHA is REQUIRED as the base.
+   // If it cannot be obtained (e.g. actions: read permission missing), we fall back
+   // to a full sync — no partial fallback to payload.before.
+   let lastSuccessfulSha = null;
+   if (eventName === 'push' && !explicitBaseSha) {
+     const token = normalize(process.env.GITHUB_TOKEN);
+     const repo = normalize(process.env.GITHUB_REPOSITORY);
+     const branch = normalize(process.env.GITHUB_REF_NAME);
+     const workflowRef = normalize(process.env.GITHUB_WORKFLOW_REF);
+     const currentRunId = normalize(process.env.GITHUB_RUN_ID);
+
+     lastSuccessfulSha = await fetchLastSuccessfulRunBaseSha(token, repo, branch, workflowRef, currentRunId);
+     if (!lastSuccessfulSha) {
+       core.info('WorkspaceSync: could not determine last successful run commit. Ensure actions: read permission is granted. Performing full sync.');
+       return config;
+     }
+     core.info(`WorkspaceSync: using last successful run commit (${lastSuccessfulSha.substring(0, 8)}...) as incremental base.`);
+   }
+
    const diffRange = resolveWorkspaceSyncDiffRange(
-     core.getInput('lre_workspace_sync_base_sha'),
-     normalize(process.env.GITHUB_EVENT_NAME),
+     explicitBaseSha,
+     eventName,
      payload,
-     process.env.GITHUB_SHA
+     process.env.GITHUB_SHA,
+     lastSuccessfulSha
    );
 
    if (!diffRange) {
@@ -396,7 +486,7 @@ function runJavaProcess(jarFilePath, configFilePath) {
 
 async function run() {
   try {
-    const config = enrichWorkspaceSyncConfig(buildConfig());
+    const config = await enrichWorkspaceSyncConfig(buildConfig());
 
     // Write the configuration to a file
     const configFilePath = path.join(process.cwd(), 'config.json');
@@ -425,5 +515,6 @@ module.exports = {
   extractRunId,
   updateRunIdParseState,
   resolveWorkspaceSyncDiffRange,
-  selectChangedFilesUnderWorkspace
+  selectChangedFilesUnderWorkspace,
+  fetchLastSuccessfulRunBaseSha
 };
